@@ -137,14 +137,14 @@ export default function App() {
 
   const [showScenario, setShowScenario] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [savedProfile, setSavedProfile] = useState(null);
+  
 
   const fileRef = useRef();
 
   useEffect(() => {
     (async () => {
       const p = await loadStorage("company-profile");
-      if (p) { setSavedProfile(p); setBaseInfo(p); setBaseConfirmed(true); }
+      if (p) { setBaseInfo(p); setBaseConfirmed(true); }
       const h = await loadStorage("eval-history");
       if (h) setHistory(h);
     })();
@@ -317,7 +317,7 @@ export default function App() {
                 <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>고용노동부 고시 제2024-76호 · 공통정보 자동연결</div>
               </div>
             </div>
-            <button onClick={() => { setSavedProfile({...baseInfo}); setShowProfileModal(true); }} style={{
+            <button onClick={() => { ({...baseInfo}); setShowProfileModal(true); }} style={{
               background: baseConfirmed ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)",
               border: `1px solid ${baseConfirmed ? "rgba(34,197,94,0.5)" : "rgba(255,255,255,0.2)"}`,
               borderRadius: 10, padding: "7px 12px", color: "#fff",
