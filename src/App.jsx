@@ -137,9 +137,14 @@ export default function App() {
 
   const [showScenario, setShowScenario] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  
+
+  // 회사 양식 관련
+  const [companyTemplate, setCompanyTemplate] = useState(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   const fileRef = useRef();
+  const templateRef = useRef();
 
   useEffect(() => {
     (async () => {
@@ -159,11 +164,11 @@ export default function App() {
     const allData = getAllData();
     const info = Object.entries(allData).map(([k, v]) => `${k}: ${v || "미입력"}`).join("\n");
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",        
-        headers:{"Content-Type":"application/json"},
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
           system: prompt,
           messages: [{ role: "user", content: `다음 정보로 문서를 작성해주세요:\n\n${info}` }],
@@ -258,6 +263,136 @@ export default function App() {
       hazards: sc.hazards.join(", "),
     }));
     setShowScenario(false);
+  };
+
+  // ── 회사 양식 업로드 ──────────────────────────────
+  const handleTemplateUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: "array" });
+        setCompanyTemplate(wb);
+        setTemplateName(file.name);
+        alert(`✅ "${file.name}" 양식이 등록됐어요!\n이제 AI로 자동 채우기를 사용할 수 있어요.`);
+      } catch {
+        alert("❌ 엑셀 파일을 읽을 수 없어요.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = "";
+  };
+
+  // ── 회사 양식에 AI 내용 채우기 + 다운로드 ──────────
+  const fillTemplateWithAI = async () => {
+    if (!companyTemplate) {
+      alert("⚠️ 먼저 회사 양식을 업로드해주세요!");
+      return;
+    }
+    setTemplateLoading(true);
+
+    try {
+      const allData = getAllData();
+      const info = Object.entries(allData).map(([k, v]) => `${k}: ${v || "미입력"}`).join("\n");
+
+      // 양식의 빈칸 분석
+      const ws = companyTemplate.Sheets[companyTemplate.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      const templateText = rows.map(r => r.join(" | ")).join("\n");
+
+      const systemPrompt = `당신은 산업안전보건 전문가입니다. 
+아래 위험성평가 양식 구조를 분석하고, 주어진 사업장 정보를 바탕으로 빈칸을 채워주세요.
+
+양식 구조:
+${templateText.slice(0, 2000)}
+
+출력 형식: JSON 배열로만 응답하세요.
+[{"row": 행번호, "col": 열번호, "value": "채울내용"}, ...]
+행/열 번호는 0부터 시작합니다.
+빈칸이거나 "( )", "□", "기재", "작성" 등이 있는 셀만 채우세요.
+JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{ role: "user", content: `사업장 정보:\n${info}\n\n위 양식의 빈칸을 채워주세요.` }],
+        }),
+      });
+      const d = await res.json();
+      const text = d.content?.map(b => b.text || "").join("") || "";
+
+      // JSON 파싱 시도
+      let fills = [];
+      try {
+        const clean = text.replace(/```json|```/g, "").trim();
+        fills = JSON.parse(clean);
+      } catch {
+        // JSON 파싱 실패시 기본 채우기
+        fills = [];
+      }
+
+      // 새 workbook 복사 후 값 채우기
+      const newWb = XLSX.read(XLSX.write(companyTemplate, { type: "array", bookType: "xlsx" }), { type: "array" });
+      const newWs = newWb.Sheets[newWb.SheetNames[0]];
+
+      // 기본 정보 채우기 (JSON 파싱 성공/실패 관계없이)
+      const cellMap = {};
+      rows.forEach((row, ri) => {
+        row.forEach((cell, ci) => {
+          const cellStr = String(cell).trim();
+          if (cellStr.includes("사업장") || cellStr.includes("업체명")) {
+            const nextCell = XLSX.utils.encode_cell({ r: ri, c: ci + 1 });
+            if (!newWs[nextCell] || !newWs[nextCell].v) {
+              newWs[nextCell] = { t: "s", v: baseInfo.company || "" };
+            }
+          }
+          if (cellStr.includes("업종")) {
+            const nextCell = XLSX.utils.encode_cell({ r: ri, c: ci + 1 });
+            if (!newWs[nextCell] || !newWs[nextCell].v) {
+              newWs[nextCell] = { t: "s", v: baseInfo.industry || "" };
+            }
+          }
+          if (cellStr.includes("근로자수") || cellStr.includes("근로자 수")) {
+            const nextCell = XLSX.utils.encode_cell({ r: ri, c: ci + 1 });
+            if (!newWs[nextCell] || !newWs[nextCell].v) {
+              newWs[nextCell] = { t: "s", v: baseInfo.workers || "" };
+            }
+          }
+          if (cellStr.includes("안전관리자") || cellStr.includes("담당자")) {
+            const nextCell = XLSX.utils.encode_cell({ r: ri, c: ci + 1 });
+            if (!newWs[nextCell] || !newWs[nextCell].v) {
+              newWs[nextCell] = { t: "s", v: baseInfo.manager || "" };
+            }
+          }
+          if (cellStr.includes("작성일") || cellStr.includes("평가일")) {
+            const nextCell = XLSX.utils.encode_cell({ r: ri, c: ci + 1 });
+            if (!newWs[nextCell] || !newWs[nextCell].v) {
+              newWs[nextCell] = { t: "s", v: new Date().toLocaleDateString("ko-KR") };
+            }
+          }
+        });
+      });
+
+      // AI가 채운 값 적용
+      fills.forEach(({ row, col, value }) => {
+        if (typeof row === "number" && typeof col === "number" && value) {
+          const cellAddr = XLSX.utils.encode_cell({ r: row, c: col });
+          newWs[cellAddr] = { t: "s", v: String(value) };
+        }
+      });
+
+      const fileName = `${templateName.replace(".xlsx", "")}_AI완성_${baseInfo.company || "사업장"}.xlsx`;
+      XLSX.writeFile(newWb, fileName);
+      alert(`✅ "${fileName}" 다운로드 완료!\nAI가 채운 내용을 검토 후 사용하세요.`);
+    } catch (err) {
+      alert("❌ 오류가 발생했습니다. 다시 시도해주세요.");
+    }
+    setTemplateLoading(false);
   };
 
   // ── 공통 헤더 ──────────────────────────────────
@@ -402,6 +537,58 @@ export default function App() {
               borderRadius: 9, color: C.amber, fontSize: 12, fontWeight: 700, cursor: "pointer",
             }}>🏭 업종별 시나리오</button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.txt" onChange={handleFile} style={{ display: "none" }} />
+          </div>
+
+          {/* 회사 양식 자동채우기 */}
+          <div style={{
+            background: "#fff", borderRadius: 12, padding: "14px",
+            boxShadow: "0 1px 5px rgba(0,0,0,0.05)", marginBottom: 12,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.slate, marginBottom: 10 }}>
+              🏢 회사 양식 자동채우기
+            </div>
+            {companyTemplate ? (
+              <div>
+                <div style={{
+                  background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)",
+                  borderRadius: 9, padding: "10px 13px", marginBottom: 10,
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#166534" }}>✅ 양식 등록됨</div>
+                    <div style={{ fontSize: 11, color: "#4b7c5e", marginTop: 2 }}>{templateName}</div>
+                  </div>
+                  <button onClick={() => { setCompanyTemplate(null); setTemplateName(""); }} style={{
+                    background: "none", border: "none", color: "#94a3b8", fontSize: 18, cursor: "pointer",
+                  }}>×</button>
+                </div>
+                <button onClick={fillTemplateWithAI} disabled={templateLoading} style={{
+                  width: "100%", padding: "11px",
+                  background: templateLoading ? "rgba(139,92,246,0.3)" : "linear-gradient(135deg, #7c3aed, #8b5cf6)",
+                  border: "none", borderRadius: 10, color: "#fff",
+                  fontSize: 13, fontWeight: 700, cursor: templateLoading ? "not-allowed" : "pointer",
+                  boxShadow: "0 3px 12px rgba(139,92,246,0.3)",
+                }}>
+                  {templateLoading ? "⏳ AI가 양식을 채우는 중..." : "🤖 AI로 양식 자동채우기 + 다운로드"}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10, lineHeight: 1.5 }}>
+                  회사 위험성평가 엑셀 양식을 업로드하면 AI가 자동으로 내용을 채워드려요
+                </div>
+                <button onClick={() => templateRef.current?.click()} style={{
+                  width: "100%", padding: "11px",
+                  background: "rgba(139,92,246,0.08)", border: "1.5px dashed rgba(139,92,246,0.4)",
+                  borderRadius: 10, color: C.purple,
+                  fontSize: 13, fontWeight: 700, cursor: "pointer",
+                }}>
+                  📂 회사 양식 업로드 (.xlsx)
+                </button>
+              </div>
+            )}
+            <input ref={templateRef} type="file" accept=".xlsx,.xls" onChange={handleTemplateUpload} style={{ display: "none" }} />
+          </div>
           </div>
 
           {/* 단계 목록 */}
@@ -708,6 +895,42 @@ export default function App() {
   }
 
   // ══════════════════════════════════════════════
+  // 엑셀 다운로드 함수
+  // ══════════════════════════════════════════════
+  const downloadExcel = () => {
+    if (!result) return;
+    const lines = result.split("\n").filter(Boolean);
+    const wsData = [
+      ["AI 위험성평가 자동작성 시스템", "", ""],
+      ["고용노동부 고시 제2024-76호 기준", "", ""],
+      ["", "", ""],
+      ["사업장명", baseInfo.company || "", ""],
+      ["업종", baseInfo.industry || "", ""],
+      ["근로자수", baseInfo.workers || "", ""],
+      ["안전관리자", baseInfo.manager || "", ""],
+      ["작성일", new Date().toLocaleDateString("ko-KR"), ""],
+      ["단계", activeStep?.title || "", ""],
+      ["", "", ""],
+      ["━━━ 문서 내용 ━━━", "", ""],
+      ...lines.map(line => [line, "", ""]),
+      ["", "", ""],
+      ["⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.", "", ""],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 80 }, { wch: 20 }, { wch: 20 }];
+
+    // 스타일 - 제목 굵게
+    if (ws["A1"]) ws["A1"].s = { font: { bold: true, sz: 14 }, fill: { fgColor: { rgb: "0F2640" } }, font: { color: { rgb: "FFFFFF" }, bold: true, sz: 14 } };
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, activeStep?.title || "위험성평가");
+
+    const fileName = `위험성평가_${activeStep?.title || "문서"}_${baseInfo.company || "사업장"}_${new Date().toLocaleDateString("ko-KR").replace(/\./g, "").replace(/ /g, "")}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  // ══════════════════════════════════════════════
   // 결과
   // ══════════════════════════════════════════════
   if (screen === "step-result" && activeStep) {
@@ -715,42 +938,149 @@ export default function App() {
     const nextStep = STEPS[stepIdx + 1];
     const stepColor = activeStep.color || C.purple;
     return (
-      <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <Header
-          title={`${activeStep.icon || "🎓"} ${activeStep.title} 결과`}
-          onBack={() => setScreen(activeStep.uniqueFields ? "step-form" : "edu-form")}
-          right={!loading && result ? (
-            <button onClick={() => navigator.clipboard.writeText(result)} style={{
-              background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
-              borderRadius: 8, padding: "6px 11px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
-            }}>📋 복사</button>
-          ) : null}
-        />
-        <div style={{ maxWidth: 560, margin: "0 auto", padding: "14px 14px 32px" }}>
-          <div style={{ background: "#fff", borderRadius: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden", marginBottom: 10 }}>
-            {loading ? (
-              <div style={{ textAlign: "center", padding: "50px 20px" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>{activeStep.icon || "🎓"}</div>
-                <div style={{ color: C.navy, fontWeight: 800, fontSize: 15, marginBottom: 6 }}>AI가 문서를 작성하고 있어요</div>
-                <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 20 }}>고용노동부 기준으로 생성 중...</div>
-                <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
-                  {[0, 1, 2].map(i => (
-                    <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: stepColor, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div style={{ padding: "18px" }}>
-                <div style={{ background: `${stepColor}10`, border: `1px solid ${stepColor}25`, borderRadius: 9, padding: "9px 13px", marginBottom: 14, fontSize: 12, color: stepColor, fontWeight: 600 }}>
-                  ✅ 완료 — 검토 후 사용하세요
-                </div>
-                <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 13.5, lineHeight: 1.8, color: "#1e293b", margin: 0, fontFamily: "'Noto Sans KR', sans-serif" }}>{result}</pre>
+      <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f0f4f8 0%, #e8eef5 100%)", fontFamily: "'Noto Sans KR', sans-serif" }}>
+        {/* 헤더 */}
+        <div style={{
+          background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`,
+          padding: "14px 16px", position: "sticky", top: 0, zIndex: 50,
+          boxShadow: "0 2px 20px rgba(0,0,0,0.2)",
+        }}>
+          <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setScreen(activeStep.uniqueFields ? "step-form" : "edu-form")} style={{
+              background: "rgba(255,255,255,0.12)", border: "none",
+              borderRadius: 8, padding: "6px 11px", color: "#fff", fontSize: 13, cursor: "pointer",
+            }}>← 뒤로</button>
+            <div style={{ flex: 1, color: "#fff", fontSize: 15, fontWeight: 700 }}>
+              {activeStep.icon || "🎓"} {activeStep.title} 결과
+            </div>
+            {!loading && result && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => navigator.clipboard.writeText(result)} style={{
+                  background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
+                  borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                }}>📋 복사</button>
+                <button onClick={downloadExcel} style={{
+                  background: "rgba(34,197,94,0.3)", border: "1px solid rgba(34,197,94,0.5)",
+                  borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                }}>📥 엑셀</button>
               </div>
             )}
           </div>
+        </div>
 
-          {!loading && result && (
+        <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 32px" }}>
+
+          {loading ? (
+            /* 로딩 화면 */
+            <div style={{
+              background: "#fff", borderRadius: 20,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+              padding: "50px 20px", textAlign: "center",
+            }}>
+              <div style={{
+                width: 72, height: 72, borderRadius: "50%", margin: "0 auto 16px",
+                background: `linear-gradient(135deg, ${stepColor}22, ${stepColor}11)`,
+                border: `3px solid ${stepColor}44`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32,
+              }}>{activeStep.icon || "🎓"}</div>
+              <div style={{ color: C.navy, fontWeight: 800, fontSize: 16, marginBottom: 6 }}>AI가 문서를 작성하고 있어요</div>
+              <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 24 }}>고용노동부 기준으로 생성 중...</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{
+                    width: 10, height: 10, borderRadius: "50%", background: stepColor,
+                    animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s`,
+                  }} />
+                ))}
+              </div>
+            </div>
+          ) : (
             <>
+              {/* 완료 배너 */}
+              <div style={{
+                background: `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`,
+                borderRadius: 14, padding: "14px 18px", marginBottom: 14,
+                display: "flex", alignItems: "center", gap: 12,
+                boxShadow: `0 4px 20px ${stepColor}44`,
+              }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+                }}>✅</div>
+                <div>
+                  <div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>{activeStep.title} 문서 생성 완료!</div>
+                  <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 2 }}>
+                    {baseInfo.company || "사업장"} · {new Date().toLocaleDateString("ko-KR")}
+                  </div>
+                </div>
+              </div>
+
+              {/* 다운로드 버튼 */}
+              <button onClick={downloadExcel} style={{
+                width: "100%", padding: "13px", marginBottom: 14,
+                background: "linear-gradient(135deg, #16a34a, #22c55e)",
+                border: "none", borderRadius: 13, color: "#fff",
+                fontSize: 14, fontWeight: 700, cursor: "pointer",
+                boxShadow: "0 4px 16px rgba(34,197,94,0.4)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}>
+                <span style={{ fontSize: 18 }}>📥</span> 엑셀 파일로 다운로드
+              </button>
+
+              {/* 문서 내용 */}
+              <div style={{
+                background: "#fff", borderRadius: 16,
+                boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+                overflow: "hidden", marginBottom: 12,
+              }}>
+                {/* 문서 헤더 */}
+                <div style={{
+                  background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`,
+                  padding: "14px 18px",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>{activeStep.icon || "📄"}</span>
+                    <div>
+                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 13 }}>{activeStep.title}</div>
+                      <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>고용노동부 고시 제2024-76호 기준</div>
+                    </div>
+                  </div>
+                  <button onClick={() => navigator.clipboard.writeText(result)} style={{
+                    background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
+                    borderRadius: 8, padding: "5px 10px", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  }}>📋 복사</button>
+                </div>
+
+                {/* 문서 본문 */}
+                <div style={{ padding: "20px" }}>
+                  {result.split("\n").map((line, i) => {
+                    const isTitle = line.startsWith("#") || (line.match(/^\d+\./) && line.length < 50);
+                    const isSubTitle = line.startsWith("##") || line.startsWith("**") || line.endsWith("**");
+                    const isEmpty = line.trim() === "";
+                    return (
+                      <div key={i} style={{
+                        fontSize: isTitle ? 14 : 13.5,
+                        fontWeight: isTitle ? 800 : isSubTitle ? 700 : 400,
+                        color: isTitle ? C.navy : isSubTitle ? C.blue : "#374151",
+                        lineHeight: 1.8,
+                        marginBottom: isEmpty ? 8 : isTitle ? 12 : 2,
+                        paddingLeft: line.startsWith("-") || line.startsWith("•") ? 8 : 0,
+                        borderLeft: isTitle && !line.startsWith("#") ? `3px solid ${stepColor}` : "none",
+                        paddingLeft: isTitle && !line.startsWith("#") ? 10 : line.startsWith("-") ? 8 : 0,
+                        background: isTitle && !line.startsWith("#") ? `${stepColor}08` : "transparent",
+                        borderRadius: isTitle && !line.startsWith("#") ? 6 : 0,
+                        padding: isTitle && !line.startsWith("#") ? "4px 10px" : "0",
+                      }}>
+                        {line.replace(/^#+\s?/, "").replace(/\*\*/g, "")}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 다음 단계 버튼 */}
               {nextStep && (
                 <button onClick={() => {
                   setActiveStep(nextStep);
@@ -758,24 +1088,32 @@ export default function App() {
                   setResult("");
                   setScreen("step-form");
                 }} style={{
-                  width: "100%", padding: "13px", marginBottom: 8,
+                  width: "100%", padding: "14px", marginBottom: 8,
                   background: `linear-gradient(135deg, ${nextStep.color}, ${nextStep.color}cc)`,
                   border: "none", borderRadius: 13, color: "#fff",
                   fontSize: 14, fontWeight: 700, cursor: "pointer",
                   boxShadow: `0 4px 14px ${nextStep.color}44`,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 }}>
-                  다음 → STEP {nextStep.id}: {nextStep.title}
+                  다음 → STEP {nextStep.id}: {nextStep.title} {nextStep.icon}
                 </button>
               )}
-              <button onClick={() => setScreen("home")} style={{ width: "100%", padding: "12px", background: "#fff", border: "2px solid #e2e8f0", borderRadius: 13, color: C.navy, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                🏠 홈으로
-              </button>
+              <button onClick={() => setScreen("home")} style={{
+                width: "100%", padding: "12px",
+                background: "#fff", border: "2px solid #e2e8f0",
+                borderRadius: 13, color: C.navy, fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}>🏠 홈으로</button>
+
+              {/* 경고 */}
+              <div style={{
+                marginTop: 12, padding: "12px 14px",
+                background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
+                borderRadius: 10, fontSize: 12, color: "#92400e", lineHeight: 1.6,
+              }}>
+                ⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.
+              </div>
             </>
           )}
-
-          <div style={{ marginTop: 10, padding: "11px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, fontSize: 12, color: "#92400e", lineHeight: 1.6 }}>
-            ⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.
-          </div>
         </div>
         <style>{`@keyframes pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}*{box-sizing:border-box;}`}</style>
       </div>
