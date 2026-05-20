@@ -11,12 +11,19 @@ export default async function handler(req, res) {
         'x-api-key': process.env.REACT_APP_ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({
+        model: req.body.model,
+        max_tokens: req.body.max_tokens,
+        system: req.body.system,
+        messages: req.body.messages,
+      }),
     });
 
     const data = await response.json();
+    console.log("Anthropic response:", JSON.stringify(data));
     res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
   }
 }
