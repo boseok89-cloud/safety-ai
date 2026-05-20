@@ -889,6 +889,7 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
           }}>🤖 교육자료 AI 자동 생성</button>
         </div>
         </div>
+      </div>
         <style>{`*{box-sizing:border-box;}input:focus{border-color:${C.purple}!important;background:#fff!important;}`}</style>
       </div>
     );
@@ -916,16 +917,10 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
       ["", "", ""],
       ["⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.", "", ""],
     ];
-
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws["!cols"] = [{ wch: 80 }, { wch: 20 }, { wch: 20 }];
-
-    // 스타일 - 제목 굵게
-    if (ws["A1"]) ws["A1"].s = { font: { bold: true, sz: 14 }, fill: { fgColor: { rgb: "0F2640" } }, font: { color: { rgb: "FFFFFF" }, bold: true, sz: 14 } };
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, activeStep?.title || "위험성평가");
-
     const fileName = `위험성평가_${activeStep?.title || "문서"}_${baseInfo.company || "사업장"}_${new Date().toLocaleDateString("ko-KR").replace(/\./g, "").replace(/ /g, "")}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
@@ -969,9 +964,7 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
         </div>
 
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 32px" }}>
-
           {loading ? (
-            /* 로딩 화면 */
             <div style={{
               background: "#fff", borderRadius: 20,
               boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
@@ -995,7 +988,7 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
               </div>
             </div>
           ) : (
-            <>
+            <div>
               {/* 완료 배너 */}
               <div style={{
                 background: `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`,
@@ -1034,7 +1027,6 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
                 boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
                 overflow: "hidden", marginBottom: 12,
               }}>
-                {/* 문서 헤더 */}
                 <div style={{
                   background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`,
                   padding: "14px 18px",
@@ -1052,31 +1044,8 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
                     borderRadius: 8, padding: "5px 10px", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
                   }}>📋 복사</button>
                 </div>
-
-                {/* 문서 본문 */}
                 <div style={{ padding: "20px" }}>
-                  {result.split("\n").map((line, i) => {
-                    const isTitle = line.startsWith("#") || (line.match(/^\d+\./) && line.length < 50);
-                    const isSubTitle = line.startsWith("##") || line.startsWith("**") || line.endsWith("**");
-                    const isEmpty = line.trim() === "";
-                    return (
-                      <div key={i} style={{
-                        fontSize: isTitle ? 14 : 13.5,
-                        fontWeight: isTitle ? 800 : isSubTitle ? 700 : 400,
-                        color: isTitle ? C.navy : isSubTitle ? C.blue : "#374151",
-                        lineHeight: 1.8,
-                        marginBottom: isEmpty ? 8 : isTitle ? 12 : 2,
-                        paddingLeft: line.startsWith("-") || line.startsWith("•") ? 8 : 0,
-                        borderLeft: isTitle && !line.startsWith("#") ? `3px solid ${stepColor}` : "none",
-                        paddingLeft: isTitle && !line.startsWith("#") ? 10 : line.startsWith("-") ? 8 : 0,
-                        background: isTitle && !line.startsWith("#") ? `${stepColor}08` : "transparent",
-                        borderRadius: isTitle && !line.startsWith("#") ? 6 : 0,
-                        padding: isTitle && !line.startsWith("#") ? "4px 10px" : "0",
-                      }}>
-                        {line.replace(/^#+\s?/, "").replace(/\*\*/g, "")}
-                      </div>
-                    );
-                  })}
+                  <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 13.5, lineHeight: 1.8, color: "#1e293b", margin: 0, fontFamily: "'Noto Sans KR', sans-serif" }}>{result}</pre>
                 </div>
               </div>
 
@@ -1093,7 +1062,6 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
                   border: "none", borderRadius: 13, color: "#fff",
                   fontSize: 14, fontWeight: 700, cursor: "pointer",
                   boxShadow: `0 4px 14px ${nextStep.color}44`,
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 }}>
                   다음 → STEP {nextStep.id}: {nextStep.title} {nextStep.icon}
                 </button>
@@ -1104,7 +1072,6 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
                 borderRadius: 13, color: C.navy, fontSize: 14, fontWeight: 700, cursor: "pointer",
               }}>🏠 홈으로</button>
 
-              {/* 경고 */}
               <div style={{
                 marginTop: 12, padding: "12px 14px",
                 background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
@@ -1112,14 +1079,12 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
               }}>
                 ⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.
               </div>
-            </>
+            </div>
           )}
-        </div>
         </div>
         <style>{`@keyframes pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}*{box-sizing:border-box;}`}</style>
       </div>
     );
   }
-
   return null;
 }
