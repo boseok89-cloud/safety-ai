@@ -163,7 +163,7 @@ export default function App() {
         method: "POST",        
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-3-5-sonnet-20241022
           max_tokens: 1000,
           system: prompt,
           messages: [{ role: "user", content: `다음 정보로 문서를 작성해주세요:\n\n${info}` }],
