@@ -589,7 +589,6 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
             )}
             <input ref={templateRef} type="file" accept=".xlsx,.xls" onChange={handleTemplateUpload} style={{ display: "none" }} />
           </div>
-          </div>
 
           {/* 단계 목록 */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -889,6 +888,7 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
             boxShadow: "0 4px 14px rgba(139,92,246,0.4)",
           }}>🤖 교육자료 AI 자동 생성</button>
         </div>
+        </div>
         <style>{`*{box-sizing:border-box;}input:focus{border-color:${C.purple}!important;background:#fff!important;}`}</style>
       </div>
     );
@@ -1114,6 +1114,7 @@ JSON 외 다른 텍스트는 절대 포함하지 마세요.`;
               </div>
             </>
           )}
+        </div>
         </div>
         <style>{`@keyframes pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}*{box-sizing:border-box;}`}</style>
       </div>
