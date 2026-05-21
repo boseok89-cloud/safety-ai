@@ -308,15 +308,15 @@ export default function App() {
   const BaseInfoBanner = () => (
     baseConfirmed && baseInfo.company ? (
       <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-         // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
   // 상단 사업장 기본정보 배너 컴포넌트
   // -------------------------------------------------------------------------
-  const BaseInfoBanner = () => (
-    baseConfirmed && baseInfo.company ? (
+  const BaseInfoBanner = () => {
+    return baseConfirmed && baseInfo.company ? (
       <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button 
           onClick={() => setShowProfileModal(true)} 
-          style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", padding: "12px", borderRadius: "8px", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+          style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", padding: "12px", borderRadius: "8px", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
         >
           <div style={{ color: C.navy, fontSize: 13, fontWeight: 700 }}>
             🏢 {baseInfo.company} ({baseInfo.industry || "업종 미지정"})
@@ -324,11 +324,11 @@ export default function App() {
           <span style={{ color: C.green, fontSize: 12 }}>수정 ›</span>
         </button>
       </div>
-    ) : null
-  );
+    ) : null;
+  };
 
   // -------------------------------------------------------------------------
-  // 1단계: 모드 선택 화면 (초기 홈 화면)
+  // 모드 선택 화면 (홈 화면 초기 상태)
   // -------------------------------------------------------------------------
   if (screen === "home" && !mode) {
     return (
@@ -362,14 +362,15 @@ export default function App() {
             style={{ width: "100%", background: "#fff", border: `2px solid ${C.accent}`, borderRadius: 16, padding: "20px 18px", marginBottom: 16, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: `0 4px 20px ${C.accent}15` }}
           >
             <div style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: `${C.accent}15`, border: `2px solid ${C.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>📋</div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>
                 고용노동부 고시 양식
               </div>
               <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>
                 법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
               </div>
-            </button>
+            </div>
+          </button>
 
           {/* 우리 회사 양식 사용 버튼 */}
           <button 
@@ -377,7 +378,7 @@ export default function App() {
             style={{ width: "100%", background: "#fff", border: `2px solid ${C.purple}`, borderRadius: 16, padding: "20px 18px", marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: `0 4px 20px ${C.purple}20` }}
           >
             <div style={{ width: 48, height: 48, borderRadius: 12, background: `${C.purple}15`, border: `2px solid ${C.purple}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🏢</div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>우리 회사 양식 사용</div>
               <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>기존에 사용하던 엑셀 양식을 업로드하면 AI가 내용을 자동으로 채워드려요. 회사 고유 양식을 유지하고 싶은 분께 적합해요.</div>
               <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -395,7 +396,6 @@ export default function App() {
       </div>
     );
   }
-
   // ══════════════════════════════════════════════
   // 회사 양식 모드
   // ══════════════════════════════════════════════
