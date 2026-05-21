@@ -1,3 +1,4 @@
+```jsx
 import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 
@@ -296,6 +297,7 @@ export default function App() {
     XLSX.writeFile(wb, `위험성평가_전체_${baseInfo.company || "사업장"}_${new Date().toLocaleDateString("ko-KR").replace(/\./g,"").replace(/ /g,"")}.xlsx`);
   };
 
+  // 공통 헤더 컴포넌트 내부 배치
   const Header = ({ title, onBack }) => (
     <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
       <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -305,6 +307,7 @@ export default function App() {
     </div>
   );
 
+  // 공통 배너 컴포넌트 내부 배치
   const BaseInfoBanner = () => (
     baseConfirmed && baseInfo.company ? (
       <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -317,6 +320,7 @@ export default function App() {
     ) : null
   );
 
+  // [화면 1] 선택 홈 화면
   if (screen === "home" && !mode) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -330,6 +334,7 @@ export default function App() {
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 16px" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, textAlign: "center", marginBottom: 6 }}>평가 방식을 선택해주세요</div>
           <div style={{ fontSize: 13, color: C.slate, textAlign: "center", marginBottom: 24 }}>작성 목적에 맞는 방식을 선택하면 최적화된 도움을 드려요</div>
+          
           <button onClick={async () => { setMode("moel"); await saveStorage("eval-mode", "moel"); }} style={{ width: "100%", background: "#fff", border: `2px solid ${C.accent}`, borderRadius: 16, padding: "20px 18px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left" }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: `${C.accent}15`, border: `2px solid ${C.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>📋</div>
             <div>
@@ -342,6 +347,7 @@ export default function App() {
               </div>
             </div>
           </button>
+
           <button onClick={async () => { setMode("company"); await saveStorage("eval-mode", "company"); }} style={{ width: "100%", background: "#fff", border: `2px solid ${C.purple}`, borderRadius: 16, padding: "20px 18px", marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left" }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: `${C.purple}15`, border: `2px solid ${C.purple}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🏢</div>
             <div>
@@ -354,6 +360,7 @@ export default function App() {
               </div>
             </div>
           </button>
+
           <div style={{ padding: "12px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
             📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
           </div>
@@ -362,6 +369,7 @@ export default function App() {
     );
   }
 
+  // [화면 2] 우리 회사 양식 모드
   if (screen === "home" && mode === "company") {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -416,6 +424,7 @@ export default function App() {
     );
   }
 
+  // [화면 3] 고용노동부 고시 기준 모드 메인 화면
   if (screen === "home" && mode === "moel") {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -489,9 +498,6 @@ export default function App() {
                 );
               })}
             </div>
-            <div style={{ marginTop: 10, padding: "11px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
-              📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
-            </div>
           </div>
         )}
 
@@ -564,10 +570,10 @@ export default function App() {
           </div>
         )}
       </div>
-    </div>
     );
   }
 
+  // [화면 4] 위험성평가 단계별 폼 작성 화면
   if (screen === "step-form" && activeStep) {
     const isStep1 = activeStep.id === 1;
     const stepColor = activeStep.color;
@@ -626,6 +632,7 @@ export default function App() {
     );
   }
 
+  // [화면 5] 교육자료 입력 폼 화면
   if (screen === "edu-form" && activeStep) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -650,6 +657,7 @@ export default function App() {
     );
   }
 
+  // [화면 6] 결과 확인 및 다음 단계 이동 화면
   if (screen === "step-result" && activeStep) {
     const stepIdx = STEPS.findIndex(s => s.id === activeStep.id);
     const nextStep = STEPS[stepIdx + 1];
@@ -721,9 +729,10 @@ export default function App() {
           )}
         </div>
       </div>
-    </div>
     );
   }
 
   return null;
 }
+
+```
