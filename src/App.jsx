@@ -308,17 +308,27 @@ export default function App() {
   const BaseInfoBanner = () => (
     baseConfirmed && baseInfo.company ? (
       <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        const BaseInfoBanner = () => (
-    <button 
-      onClick={() => setShowProfileModal(true)} 
-      style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", padding: "12px", borderRadius: "8px", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}
-    >
-      <div>내용</div>
-    </button>
+         // -------------------------------------------------------------------------
+  // 상단 사업장 기본정보 배너 컴포넌트
+  // -------------------------------------------------------------------------
+  const BaseInfoBanner = () => (
+    baseConfirmed && baseInfo.company ? (
+      <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button 
+          onClick={() => setShowProfileModal(true)} 
+          style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", padding: "12px", borderRadius: "8px", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+        >
+          <div style={{ color: C.navy, fontSize: 13, fontWeight: 700 }}>
+            🏢 {baseInfo.company} ({baseInfo.industry || "업종 미지정"})
+          </div>
+          <span style={{ color: C.green, fontSize: 12 }}>수정 ›</span>
+        </button>
+      </div>
+    ) : null
   );
 
   // -------------------------------------------------------------------------
-  // 모드 선택 화면
+  // 1단계: 모드 선택 화면 (초기 홈 화면)
   // -------------------------------------------------------------------------
   if (screen === "home" && !mode) {
     return (
@@ -349,27 +359,23 @@ export default function App() {
           {/* 고용노동부 고시 양식 버튼 */}
           <button 
             onClick={async () => { setMode("moel"); await saveStorage("eval-mode", "moel"); }} 
-            style={{ width: "100%", padding: "16px", borderRadius: 12, border: `2px solid ${C.accent}`, background: "#fff", cursor: "pointer" }}
+            style={{ width: "100%", background: "#fff", border: `2px solid ${C.accent}`, borderRadius: 16, padding: "20px 18px", marginBottom: 16, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: `0 4px 20px ${C.accent}15` }}
           >
-            <div style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: `${C.accent}15`, border: `2px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-              📋
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>
-              고용노동부 고시 양식
-            </div>
-            <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>
-              법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
-            </div>
-          </button>
+            <div style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: `${C.accent}15`, border: `2px solid ${C.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>📋</div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>
+                고용노동부 고시 양식
+              </div>
+              <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>
+                법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
+              </div>
+            </button>
 
-        </div>
-      </div>
-    );
-  }
-  </div>
-            </div>
-          </button>
-          <button onClick={async () => { setMode("company"); await saveStorage("eval-mode", "company"); }} style={{ width: "100%", background: "#fff", border: `2px solid ${C.purple}`, borderRadius: 16, padding: "20px 18px", marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: `0 4px 20px ${C.purple}20` }}>
+          {/* 우리 회사 양식 사용 버튼 */}
+          <button 
+            onClick={async () => { setMode("company"); await saveStorage("eval-mode", "company"); }} 
+            style={{ width: "100%", background: "#fff", border: `2px solid ${C.purple}`, borderRadius: 16, padding: "20px 18px", marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: `0 4px 20px ${C.purple}20` }}
+          >
             <div style={{ width: 48, height: 48, borderRadius: 12, background: `${C.purple}15`, border: `2px solid ${C.purple}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🏢</div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>우리 회사 양식 사용</div>
@@ -381,6 +387,7 @@ export default function App() {
               </div>
             </div>
           </button>
+
           <div style={{ padding: "12px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
             📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
           </div>
