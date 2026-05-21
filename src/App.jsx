@@ -305,21 +305,20 @@ export default function App() {
       </div>
     </div>
   );
-
-  // 공통 배너 컴포넌트 내부 배치
-  const BaseInfoBanner = () => (
-    baseConfirmed && baseInfo.company ? (
-      <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#166534" }}>공통정보 자동 적용 중</div>
-          <div style={{ fontSize: 12, color: "#4b7c5e", marginTop: 2 }}>{baseInfo.company} · {baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div>
-        </div>
-        <button onClick={() => setShowProfileModal(true)} style={{ background: "none", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 7, padding: "4px 10px", color: "#166534", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>수정</button>
+const BaseInfoBanner = () => {
+  return baseConfirmed && baseInfo.company ? (
+    <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#166534" }}>공동정보 자동 적용 중</div>
+        <div style={{ fontSize: 12, color: "#4b7c5e", marginTop: 2 }}>{baseInfo.company} · {baseInfo.industry || "업종 미지정"}</div>
       </div>
-    ) : null
-  );
-
-  // [화면 1] 선택 홈 화면
+      <button onClick={() => setShowProfileModal(true)} style={{ background: "none", border: "1px solid rgba(34,197,94,0.4)", borderRadius: "8px", padding: "6px 12px", fontSize: 12, color: "#166534", cursor: "pointer" }}>
+        수정
+      </button>
+    </div>
+  ) : null;
+};
+    // [화면 1] 선택 홈 화면
   if (screen === "home" && !mode) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
