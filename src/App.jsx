@@ -308,63 +308,62 @@ export default function App() {
   const BaseInfoBanner = () => (
     baseConfirmed && baseInfo.company ? (
       <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#166534" }}>✅ 공통정보 자동 적용 중</div>
-          <div style={{ fontSize: 12, color: "#4b7c5e", marginTop: 2 }}>{baseInfo.company} · {baseInfo.industry} · {baseInfo.workers} · 관리자: {baseInfo.manager}</div>
-        </div>
-        <button onClick={() => setShowProfileModal(true)} style={{ background: "none", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 7, padding: "4px 10px", color: "#166534", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>수정</button>
-      </div>
-    ) : null
+        const BaseInfoBanner = () => (
+    <button 
+      onClick={() => setShowProfileModal(true)} 
+      style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", padding: "12px", borderRadius: "8px", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+    >
+      <div>내용</div>
+    </button>
   );
 
-  // ══════════════════════════════════════════════
+  // -------------------------------------------------------------------------
   // 모드 선택 화면
-  // ══════════════════════════════════════════════
+  // -------------------------------------------------------------------------
   if (screen === "home" && !mode) {
     return (
-      <>
-        <div style={{ minHeight: "100vh", backgroundColor: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-       
-          {/* 상단 그라데이션 타이틀 섹션 */}
-          <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "36px 16px 28px" }}>
-            <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-              <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
-                위험성평가 전문 시스템
-              </div>
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
-                고용노동부 고시 제2024-76호 기준
-              </div>
+      <div style={{ minHeight: "100vh", backgroundColor: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
+        
+        {/* 상단 그라데이션 타이틀 섹션 */}
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "36px 16px 28px" }}>
+          <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+            <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
+              위험성평가 전문 시스템
             </div>
-          </div>
-          {/* 하단 메인 컨텐츠 및 버튼 섹션 */}
-          <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 16px" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, textAlign: "center", marginBottom: 6 }}>
-              평가 방식을 선택하세요.
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+              고용노동부 고시 제2024-76호 기준
             </div>
-            <div style={{ fontSize: 13, color: C.slate, textAlign: "center", marginBottom: 24 }}>
-              작성 목적에 맞는 방식을 선택하시면 법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
-            </div>
-
-            {/* 고용노동부 고시 양식 버튼 */}
-            <button 
-              onClick={async () => { setMode("moel"); await saveStorage("eval-mode", "moel"); }} 
-              style={{ width: "100%", padding: "16px", borderRadius: 12, border: `2px solid ${C.accent}`, background: "#fff", cursor: "pointer" }}
-            >
-              <div style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: `${C.accent}15`, border: `2px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-                📋
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>
-                고용노동부 고시 양식
-              </div>
-              <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>
-                법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
-              </div>
-            </button>
-
           </div>
         </div>
-      </>
+
+        {/* 하단 메인 컨텐츠 및 버튼 섹션 */}
+        <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 16px" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, textAlign: "center", marginBottom: 6 }}>
+            평가 방식을 선택하세요.
+          </div>
+          <div style={{ fontSize: 13, color: C.slate, textAlign: "center", marginBottom: 24 }}>
+            작성 목적에 맞는 방식을 선택하시면 법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
+          </div>
+
+          {/* 고용노동부 고시 양식 버튼 */}
+          <button 
+            onClick={async () => { setMode("moel"); await saveStorage("eval-mode", "moel"); }} 
+            style={{ width: "100%", padding: "16px", borderRadius: 12, border: `2px solid ${C.accent}`, background: "#fff", cursor: "pointer" }}
+          >
+            <div style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: `${C.accent}15`, border: `2px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+              📋
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>
+              고용노동부 고시 양식
+            </div>
+            <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>
+              법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
+            </div>
+          </button>
+
+        </div>
+      </div>
     );
   }
   </div>
