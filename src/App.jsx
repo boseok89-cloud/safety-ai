@@ -322,27 +322,52 @@ export default function App() {
   // ══════════════════════════════════════════════
   if (screen === "home" && !mode) {
     return (
-      <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "36px 16px 28px" }}>
-          <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-            <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 6 }}>위험성평가 전문 시스템</div>
-            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>고용노동부 고시 제2024-76호 기준</div>
+      <>
+        <div style={{ minHeight: "100vh", backgroundColor: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
+       
+          {/* 상단 그라데이션 타이틀 섹션 */}
+          <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "36px 16px 28px" }}>
+            <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+              <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
+                위험성평가 전문 시스템
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+                고용노동부 고시 제2024-76호 기준
+              </div>
+            </div>
+          </div>
+          {/* 하단 메인 컨텐츠 및 버튼 섹션 */}
+          <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 16px" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, textAlign: "center", marginBottom: 6 }}>
+              평가 방식을 선택하세요.
+            </div>
+            <div style={{ fontSize: 13, color: C.slate, textAlign: "center", marginBottom: 24 }}>
+              작성 목적에 맞는 방식을 선택하시면 법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
+            </div>
+
+            {/* 고용노동부 고시 양식 버튼 */}
+            <button 
+              onClick={async () => { setMode("moel"); await saveStorage("eval-mode", "moel"); }} 
+              style={{ width: "100%", padding: "16px", borderRadius: 12, border: `2px solid ${C.accent}`, background: "#fff", cursor: "pointer" }}
+            >
+              <div style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: `${C.accent}15`, border: `2px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                📋
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>
+                고용노동부 고시 양식
+              </div>
+              <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>
+                법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요.
+              </div>
+            </button>
+
           </div>
         </div>
-        <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 16px" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, textAlign: "center", marginBottom: 6 }}>평가 방식을 선택해주세요</div>
-          <div style={{ fontSize: 13, color: C.slate, textAlign: "center", marginBottom: 24 }}>작성 목적에 맞는 방식을 선택하면 최적화된 도움을 드려요</div>
-          <button onClick={async () => { setMode("moel"); await saveStorage("eval-mode", "moel"); }} style={{ width: "100%", background: "#fff", border: `2px solid ${C.accent}`, borderRadius: 16, padding: "20px 18px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: `0 4px 20px ${C.accent}20` }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: `${C.accent}15`, border: `2px solid ${C.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>📋</div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>고용노동부 고시 양식</div>
-              <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.6 }}>법정 6단계 절차에 따라 AI가 문서를 자동 작성해드려요. 처음이거나 표준 양식이 필요한 분께 적합해요.</div>
-              <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {["6단계 자동작성", "법정 기준 충족", "전체 엑셀 다운로드"].map(t => (
-                  <span key={t} style={{ fontSize: 10, fontWeight: 700, color: C.accent, background: `${C.accent}12`, padding: "3px 9px", borderRadius: 20 }}>{t}</span>
-                ))}
-              </div>
+      </>
+    );
+  }
+  </div>
             </div>
           </button>
           <button onClick={async () => { setMode("company"); await saveStorage("eval-mode", "company"); }} style={{ width: "100%", background: "#fff", border: `2px solid ${C.purple}`, borderRadius: 16, padding: "20px 18px", marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: `0 4px 20px ${C.purple}20` }}>
