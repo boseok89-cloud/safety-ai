@@ -145,7 +145,6 @@ export default function App() {
 
   const getAllData = () => ({ ...baseInfo, ...stepData });
 
-  // [버그수정] finally로 로딩 해제 + /api/chat 경유 (CORS 해결)
   const callAI = async (prompt) => {
     setLoading(true);
     setResult("");
@@ -213,7 +212,6 @@ export default function App() {
     e.target.value = "";
   };
 
-  // [버그수정] fillTemplateWithAI도 /api/chat 경유
   const fillTemplateWithAI = async () => {
     if (!companyTemplate) { alert("⚠️ 먼저 회사 양식을 업로드해주세요!"); return; }
     setTemplateLoading(true);
@@ -264,7 +262,6 @@ export default function App() {
     finally { setTemplateLoading(false); }
   };
 
-  // 전체 단계 한번에 엑셀 다운로드
   const downloadAllExcel = () => {
     const wb = XLSX.utils.book_new();
     const summaryData = [
@@ -276,7 +273,7 @@ export default function App() {
       ["근로자수", baseInfo.workers || ""],
       ["안전관리자", baseInfo.manager || ""],
       ["작성일", new Date().toLocaleDateString("ko-KR")],
-      ["완료단계", completedSteps.length + "단계 / 6단계"],
+      ["완完了단계", completedSteps.length + "단계 / 6단계"],
       ["", ""],
       ["⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.", ""],
     ];
@@ -420,7 +417,6 @@ export default function App() {
           </div>
           <button onClick={async () => { setMode(null); await saveStorage("eval-mode", null); }} style={{ width: "100%", padding: "12px", background: "#fff", border: "2px solid #e2e8f0", borderRadius: 12, color: C.slate, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>← 다른 방식으로 변경</button>
         </div>
-        {/* [버그수정] ref는 항상 렌더링되도록 최하단 배치 */}
         <input ref={templateRef} type="file" accept=".xlsx,.xls" onChange={handleTemplateUpload} style={{ display: "none" }} />
       </div>
     );
@@ -682,7 +678,6 @@ export default function App() {
     const allDone = completedSteps.length === STEPS.length;
     return (
       <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f0f4f8 0%, #e8eef5 100%)", fontFamily: "'Noto Sans KR', sans-serif" }}>
-        {/* [버그수정] @keyframes pulse 정의 포함 */}
         <style>{`*{box-sizing:border-box;}@keyframes pulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.2);opacity:0.5;}}`}</style>
         <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 2px 20px rgba(0,0,0,0.2)" }}>
           <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -714,7 +709,6 @@ export default function App() {
                   <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 2 }}>{baseInfo.company || "사업장"} · {new Date().toLocaleDateString("ko-KR")}</div>
                 </div>
               </div>
-              {/* 전체 완료시 한번에 다운로드 */}
               {allDone && (
                 <button onClick={downloadAllExcel} style={{ width: "100%", padding: "14px", marginBottom: 12, background: "linear-gradient(135deg, #16a34a, #22c55e)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(34,197,94,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                   <span style={{ fontSize: 18 }}>📥</span> 전체 6단계 문서 한번에 다운로드
@@ -748,7 +742,6 @@ export default function App() {
           )}
         </div>
       </div>
-    </div>
     );
   }
   return null;
