@@ -305,32 +305,27 @@ export default function App() {
     </div>
   );
 
-  const BaseInfoBanner = () => (
-    baseConfirmed && baseInfo.company ? (
-      <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-    // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   // 상단 사업장 기본정보 배너 컴포넌트
   // -------------------------------------------------------------------------
   const BaseInfoBanner = () => {
-    return baseConfirmed && baseInfo.company ? (
-      <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button 
-          onClick={() => setShowProfileModal(true)} 
-          style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", padding: "12px", borderRadius: "8px", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-        >
-          <div style={{ color: C.navy, fontSize: 13, fontWeight: 700 }}>
-            🏢 {baseInfo.company} ({baseInfo.industry || "업종 미지정"})
-          </div>
-          <span style={{ color: C.green, fontSize: 12 }}>수정 ›</span>
-        </button>
-      </div>
-    ) : null;
+    if (baseConfirmed && baseInfo.company) {
+      return (
+        <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button 
+            onClick={() => setShowProfileModal(true)} 
+            style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", padding: "12px", borderRadius: "8px", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+          >
+            <div style={{ color: C.navy, fontSize: 13, fontWeight: 700 }}>
+              🏢 {baseInfo.company} ({baseInfo.industry || "업종 미지정"})
+            </div>
+            <span style={{ color: C.green, fontSize: 12 }}>수정 ›</span>
+          </button>
+        </div>
+      );
+    }
+    return null;
   };
-
-  // -------------------------------------------------------------------------
-  // 모드 선택 화면 (홈 화면 초기 상태)
-  // -------------------------------------------------------------------------
-  if (screen === "home" && !mode) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
         
