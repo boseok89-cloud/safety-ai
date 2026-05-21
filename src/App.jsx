@@ -732,5 +732,3 @@ const BaseInfoBanner = () => {
 
   return null;
 }
-
-```
