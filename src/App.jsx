@@ -42,73 +42,45 @@ const BASE_FIELDS = [
 ];
 
 const STEPS = [
-  {
-    id: 1, icon: "📁", title: "사전준비", subtitle: "평가기준 및 자료 수집", color: "#0ea5e9",
-    uniqueFields: [
+  { id: 1, icon: "📁", title: "사전준비", subtitle: "평가기준 및 자료 수집", color: "#0ea5e9", uniqueFields: [
       { key: "evalType", label: "평가종류", placeholder: "예: 최초평가 / 정기평가 / 수시평가" },
       { key: "evalDate", label: "평가일자", placeholder: "예: 2026-05-06" },
       { key: "riskLevel", label: "허용위험성 기준", placeholder: "예: 상(즉시조치) / 중(단기) / 하(허용)" },
-    ],
-    prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 사전준비 단계 문서 작성. 포함: 사업장 기본정보, 법적근거(산업안전보건법 제36조), 평가팀 구성, 허용위험성 기준 매트릭스, 수집자료 목록, 평가일정. 전문적으로 한국어로.",
-  },
-  {
-    id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "작업별 위험요인 도출", color: "#f59e0b",
-    uniqueFields: [
+    ], prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 사전준비 단계 문서 작성. 포함: 사업장 기본정보, 법적근거(산업안전보건법 제36조), 평가팀 구성, 허용위험성 기준 매트릭스, 수집자료 목록, 평가일정. 전문적으로 한국어로.", },
+  { id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "작업별 위험요인 도출", color: "#f59e0b", uniqueFields: [
       { key: "workArea", label: "작업장소/공정", placeholder: "예: 지하 2층 거푸집 설치 작업" },
       { key: "workType", label: "작업종류", placeholder: "업종 시나리오 선택 또는 직접 입력" },
       { key: "equipment", label: "사용 기계·기구", placeholder: "업종 시나리오 선택 또는 직접 입력" },
       { key: "materials", label: "취급 원자재/화학물질", placeholder: "업종 시나리오 선택 또는 직접 입력" },
-    ],
-    prompt: "고용노동부 고시 제2024-76호 기준 유해·위험요인 파악 단계 문서 작성. 포함: 작업개요, 유해위험요인 목록표(8가지 이상/유형별), 재해유형, 파악방법. 전문적으로 한국어로.",
-    hasScenario: true,
-  },
-  {
-    id: 3, icon: "⚖️", title: "위험성 결정", subtitle: "가능성 × 중대성 = 위험성", color: "#ef4444",
-    uniqueFields: [
+    ], prompt: "고용노동부 고시 제2024-76호 기준 유해·위험요인 파악 단계 문서 작성. 포함: 작업개요, 유해위험요인 목록표(8가지 이상/유형별), 재해유형, 파악방법. 전문적으로 한국어로.", hasScenario: true, },
+  { id: 3, icon: "⚖️", title: "위험성 결정", subtitle: "가능성 × 중대성 = 위험성", color: "#ef4444", uniqueFields: [
       { key: "hazards", label: "주요 위험요인", placeholder: "업종 시나리오 선택 또는 직접 입력" },
       { key: "method", label: "위험성 추정 방법", placeholder: "예: 빈도·강도법 / 핵심요인 기술법" },
       { key: "currentMeasures", label: "현재 안전조치 현황", placeholder: "예: 안전난간 설치, 안전대 지급" },
-    ],
-    prompt: "고용노동부 고시 제2024-76호 기준 위험성 결정 단계 문서 작성. 포함: 위험성 추정 매트릭스, 위험요인별 결정표, 허용불가 위험성 목록, 판단근거. 전문적으로 한국어로.",
-    hasScenario: true,
-  },
-  {
-    id: 4, icon: "🛡️", title: "감소대책 수립·실행", subtitle: "위험성 제거 및 저감 조치", color: "#22c55e",
-    uniqueFields: [
+    ], prompt: "고용노동부 고시 제2024-76호 기준 위험성 결정 단계 문서 작성. 포함: 위험성 추정 매트릭스, 위험요인별 결정표, 허용불가 위험성 목록, 판단근거. 전문적으로 한국어로.", hasScenario: true, },
+  { id: 4, icon: "🛡️", title: "감소대책 수립·실행", subtitle: "위험성 제거 및 저감 조치", color: "#22c55e", uniqueFields: [
       { key: "highRisks", label: "허용불가 위험요인", placeholder: "예: 추락(상), 협착(상), 감전(중)" },
       { key: "budget", label: "개선 가용예산", placeholder: "예: 약 500만원" },
       { key: "deadline", label: "조치 완료기한", placeholder: "예: 2026-06-30" },
       { key: "responsible", label: "조치 책임자", placeholder: "예: 현장소장 김○○" },
-    ],
-    prompt: "고용노동부 고시 제2024-76호 기준 위험성 감소대책 수립·실행 단계 문서 작성. 포함: 감소대책 우선순위원칙, 위험요인별 실행계획표, 단기/중장기 조치, 개선전후 위험성 비교, 잔류위험 관리. 실용적으로 한국어로.",
-  },
-  {
-    id: 5, icon: "📢", title: "위험성평가 공유", subtitle: "근로자 주지 및 교육", color: "#8b5cf6",
-    uniqueFields: [
+    ], prompt: "고용노동부 고시 제2024-76호 기준 위험성 감소대책 수립·실행 단계 문서 작성. 포함: 감소대책 우선순위원칙, 위험요인별 실행계획표, 단기/중장기 조치, 개선전후 위험성 비교, 잔류위험 관리. 실용적으로 한국어로.", },
+  { id: 5, icon: "📢", title: "위험성평가 공유", subtitle: "근로자 주지 및 교육", color: "#8b5cf6", uniqueFields: [
       { key: "shareMethod", label: "공유 방법", placeholder: "예: 조회시간 교육, 게시판 부착" },
       { key: "shareDate", label: "공유 일자", placeholder: "예: 2026-05-10" },
       { key: "keyPoints", label: "강조할 핵심 위험요인", placeholder: "예: 추락, 협착, 화재" },
-    ],
-    prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 공유 단계 문서 작성. 포함: 공유목적/법적근거, 핵심위험요인 요약, 현장게시용 안전수칙 5가지, 근로자 의견수렴, 서명란. 한국어로.",
-  },
-  {
-    id: 6, icon: "📂", title: "기록 및 보존", subtitle: "3년 보존 의무 문서 완성", color: "#64748b",
-    uniqueFields: [
+    ], prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 공유 단계 문서 작성. 포함: 공유목적/법적근거, 핵심위험요인 요약, 현장게시용 안전수칙 5가지, 근로자 의견수렴, 서명란. 한국어로.", },
+  { id: 6, icon: "📂", title: "기록 및 보존", subtitle: "3년 보존 의무 문서 완성", color: "#64748b", uniqueFields: [
       { key: "evalPeriod", label: "평가 기간", placeholder: "예: 2026-05-01 ~ 2026-05-10" },
       { key: "totalHazards", label: "총 위험요인 수", placeholder: "예: 15개" },
       { key: "highCount", label: "고위험(상) 건수", placeholder: "예: 3건" },
       { key: "midCount", label: "중위험(중) 건수", placeholder: "예: 7건" },
       { key: "lowCount", label: "저위험(하) 건수", placeholder: "예: 5건" },
       { key: "nextEval", label: "다음 평가 예정일", placeholder: "예: 2027-05-01" },
-    ],
-    prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 기록 및 보존 단계 문서 작성. 포함: 최종결과 요약(통계), 법정보존서류 목록(시행규칙 제37조), 보존방법/기간(3년), 총평, 수시평가 기준, 다음 정기평가 계획, 서명란. 한국어로.",
-  },
+    ], prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 기록 및 보존 단계 문서 작성. 포함: 최종결과 요약(통계), 법정보존서류 목록(시행규칙 제37조), 보존방법/기간(3년), 총평, 수시평가 기준, 다음 정기평가 계획, 서명란. 한국어로.", },
 ];
 
 const C = {
-  navy: "#0f2640", blue: "#1a3a5c", accent: "#0ea5e9",
-  green: "#22c55e", amber: "#f59e0b", red: "#ef4444",
-  purple: "#8b5cf6", slate: "#64748b", bg: "#f0f4f8",
+  navy: "#0f2640", blue: "#1a3a5c", accent: "#0ea5e9", green: "#22c55e", amber: "#f59e0b", red: "#ef4444", purple: "#8b5cf6", slate: "#64748b", bg: "#f0f4f8",
 };
 
 async function saveStorage(key, val) {
@@ -180,8 +152,10 @@ export default function App() {
       await saveStorage("eval-history", newH);
     } catch {
       setResult("오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      /* [버그 수정] catch문 오류 발생 시에도 무한 로딩에 걸리지 않도록 항상 로딩 해제 */
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleFile = (e) => {
@@ -195,14 +169,14 @@ export default function App() {
         const key = String(row[0] || "").trim().toLowerCase();
         const val = String(row[1] || "").trim();
         if (!key || !val) return;
-        if (key.includes("사업장") || key.includes("company"))        { base.company   = val; cnt++; }
-        else if (key.includes("업종") || key.includes("industry"))    { base.industry  = val; cnt++; }
-        else if (key.includes("근로자") || key.includes("worker"))    { base.workers   = val; cnt++; }
-        else if (key.includes("관리자") || key.includes("manager"))   { base.manager   = val; cnt++; }
-        else if (key.includes("작업종류") || key.includes("worktype")){ step.workType  = val; cnt++; }
-        else if (key.includes("기계") || key.includes("equipment"))   { step.equipment = val; cnt++; }
-        else if (key.includes("화학") || key.includes("material"))    { step.materials = val; cnt++; }
-        else if (key.includes("위험") || key.includes("hazard"))      { step.hazards   = val; cnt++; }
+        if (key.includes("사업장") || key.includes("company")) { base.company = val; cnt++; }
+        else if (key.includes("업종") || key.includes("industry")) { base.industry = val; cnt++; }
+        else if (key.includes("근로자") || key.includes("worker")) { base.workers = val; cnt++; }
+        else if (key.includes("관리자") || key.includes("manager")) { base.manager = val; cnt++; }
+        else if (key.includes("작업종류") || key.includes("worktype")){ step.workType = val; cnt++; }
+        else if (key.includes("기계") || key.includes("equipment")) { step.equipment = val; cnt++; }
+        else if (key.includes("화학") || key.includes("material")) { step.materials = val; cnt++; }
+        else if (key.includes("위험") || key.includes("hazard")) { step.hazards = val; cnt++; }
       });
       setBaseInfo(base);
       setStepData(step);
@@ -210,6 +184,7 @@ export default function App() {
       if (cnt > 0) alert(`✅ ${cnt}개 항목 자동 입력 완료!`);
       else alert("⚠️ 인식된 항목이 없어요.\n첫 열에 항목명(예: 사업장명), 두번째 열에 값을 입력해주세요.");
     };
+
     const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
     if (isExcel) {
       const reader = new FileReader();
@@ -303,8 +278,7 @@ export default function App() {
         });
       });
       fills.forEach(({ row, col, value }) => {
-        if (typeof row === "number" && typeof col === "number" && value)
-          newWs[XLSX.utils.encode_cell({ r: row, c: col })] = { t: "s", v: String(value) };
+        if (typeof row === "number" && typeof col === "number" && value) newWs[XLSX.utils.encode_cell({ r: row, c: col })] = { t: "s", v: String(value) };
       });
       const fileName = `${templateName.replace(".xlsx", "")}_AI완성_${baseInfo.company || "사업장"}.xlsx`;
       XLSX.writeFile(newWb, fileName);
@@ -399,7 +373,6 @@ export default function App() {
             </div>
           </div>
         </div>
-
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "14px 14px 0" }}>
           <div style={{ display: "flex", background: "#e2e8f0", borderRadius: 11, padding: 3, gap: 3 }}>
             {[{ k: "assessment", l: "📋 위험성평가" }, { k: "education", l: "🎓 교육자료" }, { k: "history", l: "📜 이력" }].map(t => (
@@ -407,13 +380,11 @@ export default function App() {
             ))}
           </div>
         </div>
-
         {tab === "assessment" && (
           <div style={{ maxWidth: 560, margin: "0 auto", padding: "12px 14px 28px" }}>
             <div style={{ background: "#fff", borderRadius: 12, padding: "12px 14px", boxShadow: "0 1px 5px rgba(0,0,0,0.05)", marginBottom: 12, display: "flex", gap: 8 }}>
               <button onClick={() => fileRef.current?.click()} style={{ flex: 1, padding: "9px 0", background: "rgba(14,165,233,0.08)", border: "1.5px solid rgba(14,165,233,0.3)", borderRadius: 9, color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>📊 엑셀/CSV 불러오기</button>
               <button onClick={() => setShowScenario(true)} style={{ flex: 1, padding: "9px 0", background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 9, color: C.amber, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🏭 업종별 시나리오</button>
-              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.txt" onChange={handleFile} style={{ display: "none" }} />
             </div>
             <div style={{ background: "#fff", borderRadius: 12, padding: "14px", boxShadow: "0 1px 5px rgba(0,0,0,0.05)", marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.slate, marginBottom: 10 }}>🏢 회사 양식 자동채우기</div>
@@ -436,7 +407,6 @@ export default function App() {
                   <button onClick={() => templateRef.current?.click()} style={{ width: "100%", padding: "11px", background: "rgba(139,92,246,0.08)", border: "1.5px dashed rgba(139,92,246,0.4)", borderRadius: 10, color: C.purple, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📂 회사 양식 업로드 (.xlsx)</button>
                 </div>
               )}
-              <input ref={templateRef} type="file" accept=".xlsx,.xls" onChange={handleTemplateUpload} style={{ display: "none" }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {STEPS.map((s, i) => {
@@ -463,7 +433,6 @@ export default function App() {
             </div>
           </div>
         )}
-
         {tab === "education" && (
           <div style={{ maxWidth: 560, margin: "0 auto", padding: "12px 14px 28px" }}>
             {[
@@ -484,7 +453,6 @@ export default function App() {
             ))}
           </div>
         )}
-
         {tab === "history" && (
           <div style={{ maxWidth: 560, margin: "0 auto", padding: "12px 14px 28px" }}>
             {history.length === 0 ? (
@@ -514,7 +482,6 @@ export default function App() {
             )}
           </div>
         )}
-
         {showScenario && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowScenario(false)}>
             <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", width: "100%", maxWidth: 560 }} onClick={e => e.stopPropagation()}>
@@ -528,7 +495,6 @@ export default function App() {
             </div>
           </div>
         )}
-
         {showProfileModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowProfileModal(false)}>
             <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", width: "100%", maxWidth: 560 }} onClick={e => e.stopPropagation()}>
@@ -546,8 +512,10 @@ export default function App() {
             </div>
           </div>
         )}
+        {/* [버그 수정] 조건부 렌더링에 의해 Ref가 터지는 현상을 막기 위해 최하단 배치 */}
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.txt" onChange={handleFile} style={{ display: "none" }} />
+        <input ref={templateRef} type="file" accept=".xlsx,.xls" onChange={handleTemplateUpload} style={{ display: "none" }} />
       </div>
-    </div>
     );
   }
 
@@ -563,8 +531,7 @@ export default function App() {
           {isStep1 && (
             <div style={{ background: "#fff", borderRadius: 14, padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                🏢 사업장 공통정보
-                <span style={{ fontSize: 11, color: C.accent, fontWeight: 600, background: `${C.accent}12`, padding: "2px 8px", borderRadius: 20 }}>2~6단계 자동적용</span>
+                🏢 사업장 공통정보 <span style={{ fontSize: 11, color: C.accent, fontWeight: 600, background: `${C.accent}12`, padding: "2px 8px", borderRadius: 20 }}>2~6단계 자동적용</span>
               </div>
               {BASE_FIELDS.map(f => (
                 <div key={f.key} style={{ marginBottom: 12 }}>
@@ -582,8 +549,7 @@ export default function App() {
             {activeStep.uniqueFields.map(f => (
               <div key={f.key} style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 5 }}>
-                  {f.label}
-                  {stepData[f.key] && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>● 자동완성</span>}
+                  {f.label} {stepData[f.key] && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>● 자동완성</span>}
                 </label>
                 <input value={stepData[f.key] || ""} onChange={e => setStepData(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: `1.5px solid ${stepData[f.key] ? "rgba(34,197,94,0.4)" : "#e2e8f0"}`, fontSize: 14, color: C.navy, outline: "none", background: stepData[f.key] ? "rgba(34,197,94,0.04)" : "#f8fafc", boxSizing: "border-box" }} />
               </div>
@@ -640,6 +606,14 @@ export default function App() {
     const stepColor = activeStep.color || C.purple;
     return (
       <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f0f4f8 0%, #e8eef5 100%)", fontFamily: "'Noto Sans KR', sans-serif" }}>
+        {/* [버그 수정] 인라인 CSS 내 누락되었던 @keyframes pulse 정의 주입 */}
+        <style>{`
+          *{box-sizing:border-box;}
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.5; }
+          }
+        `}</style>
         <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 2px 20px rgba(0,0,0,0.2)" }}>
           <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={() => setScreen(activeStep.uniqueFields ? "step-form" : "edu-form")} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 11px", color: "#fff", fontSize: 13, cursor: "pointer" }}>← 뒤로</button>
@@ -704,9 +678,9 @@ export default function App() {
           )}
         </div>
       </div>
-    </div>
     );
   }
-
   return null;
 }
+
+```
