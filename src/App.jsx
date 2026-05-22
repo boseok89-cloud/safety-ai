@@ -97,15 +97,10 @@ const STEPS = [
     ],
     prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 사전준비 단계 문서 작성. 포함: 사업장 기본정보, 법적근거(산업안전보건법 제36조), 평가팀 구성 및 역할, 가능성×중대성 위험성 판단 기준 매트릭스(3×3), 수집자료 목록(재해사례/아차사고/공정정보), 평가일정. 중대성은 시나리오별로 STEP3에서 결정됨을 명시. 전문적으로 한국어로.",
   },
-  { id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "위험 시나리오 도출", color: "#f59e0b",
-    uniqueFields: [
-      { key: "workArea", label: "작업장소/공정", placeholder: "예: 지하 2층 거푸집 설치 작업" },
-      { key: "workType", label: "작업종류", placeholder: "업종 시나리오 선택 또는 직접 입력" },
-      { key: "equipment", label: "사용 기계·기구", placeholder: "업종 시나리오 선택 또는 직접 입력" },
-      { key: "materials", label: "취급 원자재/화학물질", placeholder: "업종 시나리오 선택 또는 직접 입력" },
-      { key: "currentSafety", label: "현재 안전조치 현황", placeholder: "예: 안전난간 설치, 안전대 지급, 작업허가서 운영" },
-    ],
-    prompt: "고용노동부 고시 제2024-76호 기준 유해·위험요인 파악 단계 문서 작성. 포함: 작업개요, 위험 시나리오 목록표(8개 이상) - 각 시나리오는 [작업상황 → 위험요인 → 예상 재해유형] 형식으로 작성, 유형별 분류(기계적/화학적/물리적/인간공학적), 파악방법(순회점검/근로자의견청취). 중대성 평가는 STEP3에서 별도 수행함을 명시. 전문적으로 한국어로.",
+  { id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "공정별 위험 시나리오 도출", color: "#f59e0b",
+    uniqueFields: [],
+    multiSheet: true,
+    prompt: "고용노동부 고시 제2024-76호 기준 유해·위험요인 파악 단계 문서 작성. 포함: 공정/작업 개요, 기인물별 위험 시나리오 목록표(6개 이상) - 각 시나리오는 [작업상황 → 기인물 → 위험요인 → 예상 재해유형] 형식으로 작성, 유형별 분류(기계적/화학적/물리적/인간공학적), 현재 안전조치 현황. 중대성 평가는 STEP3에서 별도 수행함을 명시. 전문적으로 한국어로.",
     hasScenario: true,
   },
   { id: 3, icon: "⚖️", title: "위험성 결정", subtitle: "시나리오별 가능성 × 중대성 평가", color: "#ef4444",
@@ -153,36 +148,16 @@ const C = {
   purple: "#8b5cf6", slate: "#64748b", bg: "#f0f4f8",
 };
 
-// Vercel 인바이런먼트 브라우저 안전장치 확보
 async function saveStorage(key, val) {
-  try { 
-    if (window.storage && typeof window.storage.set === 'function') {
-      await window.storage.set(key, JSON.stringify(val)); 
-    } else {
-      localStorage.setItem(key, JSON.stringify(val));
-    }
-  } catch {}
+  try { await window.storage.set(key, JSON.stringify(val)); } catch {}
 }
-
 async function loadStorage(key) {
-  try { 
-    if (window.storage && typeof window.storage.get === 'function') {
-      const r = await window.storage.get(key); 
-      return r ? JSON.parse(r.value) : null; 
-    } else {
-      const r = localStorage.getItem(key);
-      return r ? JSON.parse(r) : null;
-    }
-  } catch { return null; }
+  try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; }
 }
 
 // 워드 문서 생성 함수 (docx CDN 사용)
 function downloadWordDoc(content, title, baseInfo) {
   try {
-    if (!window.docx) {
-      alert("docx 라이브러리가 로드되지 않았습니다. index.html의 CDN 설정을 확인하세요.");
-      return;
-    }
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
             HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType } = window.docx;
 
@@ -331,6 +306,12 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [showScenario, setShowScenario] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  // 공정별 Sheet 관리 (STEP2 전용)
+  const [sheets, setSheets] = useState([
+    { id: 1, workArea: "", workType: "", equipment: "", materials: "", currentSafety: "", result: "" }
+  ]);
+  const [activeSheetId, setActiveSheetId] = useState(1);
+  const [sheetLoading, setSheetLoading] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -386,14 +367,89 @@ export default function App() {
   const applyScenario = (industry) => {
     const sc = INDUSTRY_SCENARIOS[industry];
     if (!sc) return;
-    setStepData(prev => ({
-      ...prev,
-      workType: sc.workTypes.join(", "),
-      equipment: sc.equipments.join(", "),
-      materials: sc.materials.join(", "),
-      hazards: sc.hazards.join(", "),
-    }));
+    // Sheet 모드일 때는 현재 활성 Sheet에 적용
+    if (activeStep?.multiSheet) {
+      setSheets(prev => prev.map(s => s.id === activeSheetId ? {
+        ...s,
+        workType: sc.workTypes.join(", "),
+        equipment: sc.equipments.join(", "),
+        materials: sc.materials.join(", "),
+        currentSafety: "",
+      } : s));
+    } else {
+      setStepData(prev => ({
+        ...prev,
+        workType: sc.workTypes.join(", "),
+        equipment: sc.equipments.join(", "),
+        materials: sc.materials.join(", "),
+        hazards: sc.hazards.join(", "),
+      }));
+    }
     setShowScenario(false);
+  };
+
+  // Sheet 추가
+  const addSheet = () => {
+    const newId = Math.max(...sheets.map(s => s.id)) + 1;
+    setSheets(prev => [...prev, {
+      id: newId, workArea: "", workType: "", equipment: "", materials: "", currentSafety: "", result: ""
+    }]);
+    setActiveSheetId(newId);
+  };
+
+  // Sheet 삭제
+  const removeSheet = (id) => {
+    if (sheets.length <= 1) return;
+    const remaining = sheets.filter(s => s.id !== id);
+    setSheets(remaining);
+    if (activeSheetId === id) setActiveSheetId(remaining[0].id);
+  };
+
+  // Sheet 필드 업데이트
+  const updateSheet = (id, field, value) => {
+    setSheets(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  // Sheet별 AI 문서 작성
+  const callAIForSheet = async (sheet) => {
+    setSheetLoading(prev => ({ ...prev, [sheet.id]: true }));
+    const allData = { ...baseInfo, ...sheet };
+    const info = Object.entries(allData).map(([k, v]) => `${k}: ${v || "미입력"}`).join("\n");
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1500,
+          system: STEPS[1].prompt,
+          messages: [{ role: "user", content: `다음 공정의 위험요인을 파악해주세요:\n\n${info}` }],
+        }),
+      });
+      const d = await res.json();
+      const text = d.content?.map(b => b.text || "").join("") || "오류가 발생했습니다.";
+      setSheets(prev => prev.map(s => s.id === sheet.id ? { ...s, result: text } : s));
+      // 이력 저장
+      const entry = {
+        id: Date.now(), step: `유해위험요인파악 - ${sheet.workArea || "공정" + sheet.id}`,
+        company: baseInfo.company || "미입력", date: new Date().toLocaleDateString("ko-KR"),
+        preview: text.slice(0, 60) + "...", full: text,
+      };
+      const newH = [entry, ...history].slice(0, 20);
+      setHistory(newH);
+      await saveStorage("eval-history", newH);
+    } catch {
+      setSheets(prev => prev.map(s => s.id === sheet.id ? { ...s, result: "오류가 발생했습니다." } : s));
+    } finally {
+      setSheetLoading(prev => ({ ...prev, [sheet.id]: false }));
+    }
+  };
+
+  // 전체 Sheet 결과 합치기 (STEP3용)
+  const getAllSheetsResult = () => {
+    return sheets.filter(s => s.result).map((s, i) =>
+      `[공정 ${i+1}: ${s.workArea || "미입력"}]\n${s.result}`
+    ).join("\n\n");
   };
 
   const Header = ({ title, onBack }) => (
@@ -430,7 +486,7 @@ export default function App() {
         </div>
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 6 }}>문서 양식을 선택해주세요</div>
-          <div style={{ fontSize: 13, color: C.slate, marginBottom: 20 }}>업종 and 사업장 규모에 맞는 양식을 선택하면 최적화된 문서를 작성해드려요</div>
+          <div style={{ fontSize: 13, color: C.slate, marginBottom: 20 }}>업종과 사업장 규모에 맞는 양식을 선택하면 최적화된 문서를 작성해드려요</div>
           {DOCUMENT_TEMPLATES.map(tmpl => (
             <button key={tmpl.id} onClick={async () => { setSelectedTemplate(tmpl); await saveStorage("selected-template", tmpl); }} style={{ width: "100%", background: "#fff", border: `2px solid ${tmpl.color}30`, borderRadius: 14, padding: "16px", marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: `${tmpl.color}15`, border: `2px solid ${tmpl.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{tmpl.icon}</div>
@@ -454,169 +510,177 @@ export default function App() {
     );
   }
 
-  // 메인 홈 (★ 형제 요소를 Fragment <> </>로 감싸 에러를 해결한 부분입니다)
+  // 메인 홈
   if (screen === "home" && selectedTemplate) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <>
-          <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "20px 16px 16px" }}>
-            <div style={{ maxWidth: 560, margin: "0 auto" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>{selectedTemplate.icon}</span>
-                  <div>
-                    <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>{selectedTemplate.name}</div>
-                    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>고용노동부 고시 제2024-76호 기준</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => setShowProfileModal(true)} style={{ background: baseConfirmed ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                    {baseConfirmed ? "✅ 프로필" : "🏢 프로필"}
-                  </button>
-                  <button onClick={async () => { setSelectedTemplate(null); await saveStorage("selected-template", null); }} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, cursor: "pointer" }}>양식변경</button>
-                </div>
-              </div>
-              {baseConfirmed && (
-                <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 10, padding: "9px 13px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>🏢</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{baseInfo.company}</div>
-                    <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11 }}>{baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div>
-                  </div>
-                  <div style={{ color: "#4ade80", fontSize: 10, fontWeight: 700 }}>전 단계 자동적용</div>
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 4 }}>
-                {STEPS.map((s, i) => (
-                  <div key={s.id} style={{ flex: 1, height: 4, borderRadius: 3, background: completedSteps.includes(i + 1) ? C.green : "rgba(255,255,255,0.18)" }} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ maxWidth: 560, margin: "0 auto", padding: "12px 14px 0" }}>
-            <div style={{ display: "flex", background: "#e2e8f0", borderRadius: 11, padding: 3, gap: 3 }}>
-              {[{ k: "assessment", l: "📋 위험성평가" }, { k: "education", l: "🎓 교육자료" }, { k: "history", l: "📜 이력" }].map(t => (
-                <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", background: tab === t.k ? "#fff" : "transparent", color: tab === t.k ? C.navy : C.slate, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t.l}</button>
-              ))}
-            </div>
-          </div>
-
-          {tab === "assessment" && (
-            <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
-              {completedSteps.length > 0 && (
-                <button onClick={() => {
-                  const allText = STEPS.filter(s => results[s.id]).map(s => `=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
-                  downloadWordDoc(allText, "위험성평가 전체", baseInfo);
-                }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>📄</span> 전체 워드 문서 다운로드 ({completedSteps.length}/6 완료)
-                </button>
-              )}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {STEPS.map((s, i) => {
-                  const done = completedSteps.includes(i + 1);
-                  return (
-                    <button key={s.id} onClick={() => { setActiveStep(s); setStepData({}); setResult(results[s.id] || ""); setScreen("step-form"); }} style={{ background: "#fff", border: `2px solid ${done ? C.green : "#e2e8f0"}`, borderRadius: 13, padding: "13px 15px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: done ? `${C.green}18` : `${s.color}12`, border: `2px solid ${done ? C.green : s.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19 }}>{done ? "✅" : s.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: `${s.color}15`, padding: "1px 7px", borderRadius: 20 }}>STEP {s.id}</span>
-                          {done && <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>완료</span>}
-                          {s.id === 1 && !baseConfirmed && <span style={{ fontSize: 10, color: C.amber, fontWeight: 700 }}>← 여기서 시작!</span>}
-                        </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{s.title}</div>
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{s.id === 1 ? "사업장 공통정보 입력 → 전 단계 자동적용" : s.subtitle}</div>
-                      </div>
-                      <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{ marginTop: 10, padding: "11px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
-                📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
-              </div>
-            </div>
-          )}
-
-          {tab === "education" && (
-            <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
-              {[
-                { icon: "🎓", title: "위험성평가 실시 전 교육", badge: "사전교육", color: C.accent, when: "평가 시작 전", prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 실시 전 교육자료 작성. 포함: 정의/목적, 법적의무, 역할분담, 6단계 절차, 판단기준 매트릭스, O/X 퀴즈 5문제. 쉽게 한국어로." },
-                { icon: "📝", title: "개선대책 이행 후 교육", badge: "완료 후", color: C.green, when: "감소대책 완료 후", prompt: "위험성평가 감소대책 이행 후 교육자료 작성. 포함: 평가결과 요약, 개선조치 상세, 변경된 작업방법, 잔류위험 주의, O/X 퀴즈 5문제. 한국어로." },
-                { icon: "🔄", title: "정기 안전교육 (위험성평가 연계)", badge: "정기교육", color: C.amber, when: "월 1회 또는 분기별", prompt: "월례 정기 안전교육자료를 위험성평가 결과와 연계해 작성. 포함: 핵심메시지, 평가결과 복습, 중점 위험요인 교육, TBM 질문 5개. 한국어로." },
-                { icon: "👷", title: "신규 채용자 교육", badge: "신규자", color: C.purple, when: "채용 즉시", prompt: "신규 채용자 위험성평가 결과 교육자료 작성. 포함: 현장 소개, 주요위험요인, 보호구 착용법, 절대금지 행위, 비상대응절차, 퀴즈 5문제. 쉽게 한국어로." },
-              ].map(edu => (
-                <button key={edu.title} onClick={() => { setActiveStep(edu); setStepData({}); setResult(""); setScreen("edu-form"); }} style={{ width: "100%", background: "#fff", border: "2px solid #e2e8f0", borderRadius: 13, padding: "14px 15px", marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", textAlign: "left" }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0, background: `${edu.color}12`, border: `2px solid ${edu.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{edu.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: edu.color, padding: "2px 8px", borderRadius: 20 }}>{edu.badge}</span>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginTop: 4, marginBottom: 2 }}>{edu.title}</div>
-                    <div style={{ fontSize: 11, color: edu.color, fontWeight: 600 }}>📅 {edu.when}</div>
-                  </div>
-                  <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {tab === "history" && (
-            <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
-              {history.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "50px 0", color: "#94a3b8" }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>📜</div>
-                  <div style={{ fontWeight: 700 }}>아직 작성된 문서가 없어요</div>
-                </div>
-              ) : (
+        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "20px 16px 16px" }}>
+          <div style={{ maxWidth: 560, margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>{selectedTemplate.icon}</span>
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, color: C.slate, fontWeight: 600 }}>최근 {history.length}건</div>
-                    <button onClick={async () => { setHistory([]); await saveStorage("eval-history", []); }} style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>전체삭제</button>
-                  </div>
-                  {history.map(h => (
-                    <div key={h.id} style={{ background: "#fff", borderRadius: 12, padding: "14px", marginBottom: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{h.step}</div>
-                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{h.company} · {h.date}</div>
-                        </div>
-                        <button onClick={() => navigator.clipboard.writeText(h.full)} style={{ background: `${C.accent}12`, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: "4px 10px", color: C.accent, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>복사</button>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{h.preview}</div>
-                    </div>
-                  ))}
+                  <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>{selectedTemplate.name}</div>
+                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>고용노동부 고시 제2024-76호 기준</div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {showProfileModal && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowProfileModal(false)}>
-              <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", width: "100%", maxWidth: 560 }} onClick={e => e.stopPropagation()}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>🏢 회사 프로필 저장</div>
-                <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>저장하면 앱을 닫아도 자동 불러와요</div>
-                {BASE_FIELDS.map(f => (
-                  <div key={f.key} style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 5 }}>{f.label}</label>
-                    <input value={baseInfo[f.key] || ""} onChange={e => setBaseInfo(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 14, color: C.navy, outline: "none", background: "#f8fafc", boxSizing: "border-box" }} />
-                  </div>
-                ))}
-                <button onClick={async () => { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); setShowProfileModal(false); alert("저장됐어요!"); }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
-                  💾 저장하기
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => setShowProfileModal(true)} style={{ background: baseConfirmed ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {baseConfirmed ? "✅ 프로필" : "🏢 프로필"}
                 </button>
+                <button onClick={async () => { setSelectedTemplate(null); await saveStorage("selected-template", null); }} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, cursor: "pointer" }}>양식변경</button>
               </div>
             </div>
-          )}
-        </>
+            {baseConfirmed && (
+              <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 10, padding: "9px 13px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🏢</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{baseInfo.company}</div>
+                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11 }}>{baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div>
+                </div>
+                <div style={{ color: "#4ade80", fontSize: 10, fontWeight: 700 }}>전 단계 자동적용</div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 4 }}>
+              {STEPS.map((s, i) => (
+                <div key={s.id} style={{ flex: 1, height: 4, borderRadius: 3, background: completedSteps.includes(i + 1) ? C.green : "rgba(255,255,255,0.18)" }} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: 560, margin: "0 auto", padding: "12px 14px 0" }}>
+          <div style={{ display: "flex", background: "#e2e8f0", borderRadius: 11, padding: 3, gap: 3 }}>
+            {[{ k: "assessment", l: "📋 위험성평가" }, { k: "education", l: "🎓 교육자료" }, { k: "history", l: "📜 이력" }].map(t => (
+              <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", background: tab === t.k ? "#fff" : "transparent", color: tab === t.k ? C.navy : C.slate, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t.l}</button>
+            ))}
+          </div>
+        </div>
+
+        {tab === "assessment" && (
+          <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
+            {completedSteps.length > 0 && (
+              <button onClick={() => {
+                const allText = STEPS.filter(s => results[s.id]).map(s => `=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
+                downloadWordDoc(allText, "위험성평가 전체", baseInfo);
+              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>📄</span> 전체 워드 문서 다운로드 ({completedSteps.length}/6 완료)
+              </button>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {STEPS.map((s, i) => {
+                const done = completedSteps.includes(i + 1);
+                return (
+                  <button key={s.id} onClick={() => { setActiveStep(s); setStepData({}); setResult(results[s.id] || ""); setScreen("step-form"); }} style={{ background: "#fff", border: `2px solid ${done ? C.green : "#e2e8f0"}`, borderRadius: 13, padding: "13px 15px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: done ? `${C.green}18` : `${s.color}12`, border: `2px solid ${done ? C.green : s.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19 }}>{done ? "✅" : s.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: `${s.color}15`, padding: "1px 7px", borderRadius: 20 }}>STEP {s.id}</span>
+                        {done && <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>완료</span>}
+                        {s.id === 1 && !baseConfirmed && <span style={{ fontSize: 10, color: C.amber, fontWeight: 700 }}>← 여기서 시작!</span>}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{s.title}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{s.id === 1 ? "사업장 공통정보 입력 → 전 단계 자동적용" : s.subtitle}</div>
+                    </div>
+                    <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 10, padding: "11px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
+              📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
+            </div>
+          </div>
+        )}
+
+        {tab === "education" && (
+          <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
+            {[
+              { icon: "🎓", title: "위험성평가 실시 전 교육", badge: "사전교육", color: C.accent, when: "평가 시작 전", prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 실시 전 교육자료 작성. 포함: 정의/목적, 법적의무, 역할분담, 6단계 절차, 판단기준 매트릭스, O/X 퀴즈 5문제. 쉽게 한국어로." },
+              { icon: "📝", title: "개선대책 이행 후 교육", badge: "완료 후", color: C.green, when: "감소대책 완료 후", prompt: "위험성평가 감소대책 이행 후 교육자료 작성. 포함: 평가결과 요약, 개선조치 상세, 변경된 작업방법, 잔류위험 주의, O/X 퀴즈 5문제. 한국어로." },
+              { icon: "🔄", title: "정기 안전교육 (위험성평가 연계)", badge: "정기교육", color: C.amber, when: "월 1회 또는 분기별", prompt: "월례 정기 안전교육자료를 위험성평가 결과와 연계해 작성. 포함: 핵심메시지, 평가결과 복습, 중점 위험요인 교육, TBM 질문 5개. 한국어로." },
+              { icon: "👷", title: "신규 채용자 교육", badge: "신규자", color: C.purple, when: "채용 즉시", prompt: "신규 채용자 위험성평가 결과 교육자료 작성. 포함: 현장 소개, 주요위험요인, 보호구 착용법, 절대금지 행위, 비상대응절차, 퀴즈 5문제. 쉽게 한국어로." },
+            ].map(edu => (
+              <button key={edu.title} onClick={() => { setActiveStep(edu); setStepData({}); setResult(""); setScreen("edu-form"); }} style={{ width: "100%", background: "#fff", border: "2px solid #e2e8f0", borderRadius: 13, padding: "14px 15px", marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0, background: `${edu.color}12`, border: `2px solid ${edu.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{edu.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: edu.color, padding: "2px 8px", borderRadius: 20 }}>{edu.badge}</span>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginTop: 4, marginBottom: 2 }}>{edu.title}</div>
+                  <div style={{ fontSize: 11, color: edu.color, fontWeight: 600 }}>📅 {edu.when}</div>
+                </div>
+                <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === "history" && (
+          <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
+            {history.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "50px 0", color: "#94a3b8" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📜</div>
+                <div style={{ fontWeight: 700 }}>아직 작성된 문서가 없어요</div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: C.slate, fontWeight: 600 }}>최근 {history.length}건</div>
+                  <button onClick={async () => { setHistory([]); await saveStorage("eval-history", []); }} style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>전체삭제</button>
+                </div>
+                {history.map(h => (
+                  <div key={h.id} style={{ background: "#fff", borderRadius: 12, padding: "14px", marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{h.step}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>{h.company} · {h.date}</div>
+                      </div>
+                      <button onClick={() => navigator.clipboard.writeText(h.full)} style={{ background: `${C.accent}12`, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: "4px 10px", color: C.accent, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>복사</button>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{h.preview}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showProfileModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowProfileModal(false)}>
+            <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", width: "100%", maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>🏢 회사 프로필 저장</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>저장하면 앱을 닫아도 자동 불러와요</div>
+              {BASE_FIELDS.map(f => (
+                <div key={f.key} style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 5 }}>{f.label}</label>
+                  <input value={baseInfo[f.key] || ""} onChange={e => setBaseInfo(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 14, color: C.navy, outline: "none", background: "#f8fafc", boxSizing: "border-box" }} />
+                </div>
+              ))}
+              <button onClick={async () => { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); setShowProfileModal(false); alert("저장됐어요!"); }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
+                💾 저장하기
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+    </div>
     );
   }
 
   if (screen === "step-form" && activeStep) {
     const isStep1 = activeStep.id === 1;
+    const isStep2 = activeStep.multiSheet === true;
     const stepColor = activeStep.color;
+    const activeSheet = sheets.find(s => s.id === activeSheetId) || sheets[0];
+    const SHEET_FIELDS = [
+      { key: "workArea", label: "작업장소/공정명", placeholder: "예: 지하 2층 거푸집 설치 작업" },
+      { key: "workType", label: "작업종류", placeholder: "예: 고소작업, 용접작업" },
+      { key: "equipment", label: "사용 기계·기구·기인물", placeholder: "예: 이동식비계, 용접기, 지게차" },
+      { key: "materials", label: "취급 원자재/화학물질", placeholder: "예: 시멘트, LPG, 유기용제" },
+      { key: "currentSafety", label: "현재 안전조치", placeholder: "예: 안전난간 설치, 안전대 지급" },
+    ];
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <header dangerouslySetInnerHTML={{ __html: `<style>*{box-sizing:border-box;} input:focus{border-color:${stepColor}!important; background:#fff!important;}</style>` }} />
+        <style>{`*{box-sizing:border-box;}input:focus{border-color:${stepColor}!important;background:#fff!important;}`}</style>
         <Header title={`${activeStep.icon} STEP ${activeStep.id} · ${activeStep.title}`} onBack={() => setScreen("home")} />
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "14px 14px 32px" }}>
           {!isStep1 && <BaseInfoBanner />}
@@ -634,23 +698,115 @@ export default function App() {
               ))}
             </div>
           )}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>{activeStep.icon} 이 단계 전용 정보</div>
-            {activeStep.hasScenario && (
-              <button onClick={() => setShowScenario(true)} style={{ width: "100%", padding: "9px", marginBottom: 12, background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 9, color: C.amber, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🏭 업종별 시나리오로 자동완성</button>
-            )}
-            {activeStep.uniqueFields && activeStep.uniqueFields.map(f => (
-              <div key={f.key} style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 }}>
-                  {f.label} {stepData[f.key] && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>자동완성</span>}
-                </label>
-                <input value={stepData[f.key] || ""} onChange={e => setStepData(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${stepData[f.key] ? "rgba(34,197,94,0.4)" : "#e2e8f0"}`, fontSize: 13, color: C.navy, outline: "none", background: stepData[f.key] ? "rgba(34,197,94,0.04)" : "#f8fafc", boxSizing: "border-box" }} />
+
+          {isStep2 && (
+            <div>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                  {sheets.map((s, i) => (
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <button onClick={() => setActiveSheetId(s.id)} style={{
+                        padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer",
+                        background: activeSheetId === s.id ? stepColor : "#e2e8f0",
+                        color: activeSheetId === s.id ? "#fff" : C.slate,
+                        fontSize: 12, fontWeight: 700,
+                      }}>
+                        {s.result ? "✅ " : ""}{s.workArea ? s.workArea.slice(0, 8) + (s.workArea.length > 8 ? ".." : "") : `공정 ${i + 1}`}
+                      </button>
+                      {sheets.length > 1 && (
+                        <button onClick={() => removeSheet(s.id)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 14, cursor: "pointer", padding: "0 2px" }}>×</button>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={addSheet} style={{
+                    padding: "6px 12px", borderRadius: 8, border: `1.5px dashed ${C.accent}`,
+                    background: `${C.accent}08`, color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  }}>+ 공정 추가</button>
+                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>공정/작업별로 Sheet를 추가해서 각각 위험요인을 파악하세요</div>
               </div>
-            ))}
-          </div>
-          <button onClick={async () => { if (isStep1) { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); } setScreen("step-result"); await callAI(activeStep.prompt); setCompletedSteps(prev => prev.includes(activeStep.id) ? prev : [...prev, activeStep.id]); }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 13, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-            🤖 AI 문서 자동 작성
-          </button>
+
+              <div style={{ background: "#fff", borderRadius: 14, padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
+                    🏭 {activeSheet.workArea || `공정 ${sheets.findIndex(s => s.id === activeSheetId) + 1}`}
+                  </div>
+                  <button onClick={() => setShowScenario(true)} style={{
+                    padding: "5px 10px", background: "rgba(245,158,11,0.08)",
+                    border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 8,
+                    color: C.amber, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  }}>🏭 시나리오</button>
+                </div>
+                {SHEET_FIELDS.map(f => (
+                  <div key={f.key} style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 }}>
+                      {f.label}
+                      {activeSheet[f.key] && f.key !== "workArea" && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>자동완성</span>}
+                    </label>
+                    <input
+                      value={activeSheet[f.key] || ""}
+                      onChange={e => updateSheet(activeSheetId, f.key, e.target.value)}
+                      placeholder={f.placeholder}
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${activeSheet[f.key] && f.key !== "workArea" ? "rgba(34,197,94,0.4)" : "#e2e8f0"}`, fontSize: 13, color: C.navy, outline: "none", background: activeSheet[f.key] && f.key !== "workArea" ? "rgba(34,197,94,0.04)" : "#f8fafc", boxSizing: "border-box" }}
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={() => callAIForSheet(activeSheet)}
+                  disabled={!!sheetLoading[activeSheetId]}
+                  style={{ width: "100%", padding: "12px", background: sheetLoading[activeSheetId] ? "rgba(245,158,11,0.3)" : `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 11, color: "#fff", fontSize: 13, fontWeight: 700, cursor: sheetLoading[activeSheetId] ? "not-allowed" : "pointer" }}
+                >
+                  {sheetLoading[activeSheetId] ? "⏳ AI가 위험요인 파악 중..." : "🤖 이 공정 위험요인 AI 파악"}
+                </button>
+                {activeSheet.result && (
+                  <div style={{ marginTop: 12, background: "#f8fafc", borderRadius: 10, padding: "12px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 6 }}>✅ 위험요인 파악 완료</div>
+                    <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 12, lineHeight: 1.7, color: "#374151", margin: 0, fontFamily: "'Noto Sans KR', sans-serif", maxHeight: 200, overflow: "auto" }}>{activeSheet.result}</pre>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ background: `${C.accent}0a`, border: `1px solid ${C.accent}25`, borderRadius: 12, padding: "11px 14px", marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.accent }}>
+                  {sheets.filter(s => s.result).length}/{sheets.length} 공정 완료
+                </div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>모든 공정 파악 후 다음 단계로 진행하세요</div>
+              </div>
+
+              <button onClick={async () => {
+                const allResult = getAllSheetsResult();
+                if (!allResult) { alert("최소 1개 공정의 위험요인을 먼저 파악해주세요!"); return; }
+                setResult(allResult);
+                setResults(prev => ({ ...prev, [2]: allResult }));
+                setCompletedSteps(prev => prev.includes(2) ? prev : [...prev, 2]);
+                setScreen("step-result");
+              }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 13, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+                📋 전체 결과 확인 및 다음 단계로
+              </button>
+            </div>
+          )}
+
+          {!isStep2 && (
+            <div>
+              <div style={{ background: "#fff", borderRadius: 14, padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>{activeStep.icon} 이 단계 전용 정보</div>
+                {activeStep.hasScenario && (
+                  <button onClick={() => setShowScenario(true)} style={{ width: "100%", padding: "9px", marginBottom: 12, background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 9, color: C.amber, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🏭 업종별 시나리오로 자동완성</button>
+                )}
+                {activeStep.uniqueFields && activeStep.uniqueFields.map(f => (
+                  <div key={f.key} style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 }}>
+                      {f.label} {stepData[f.key] && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>자동완성</span>}
+                    </label>
+                    <input value={stepData[f.key] || ""} onChange={e => setStepData(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${stepData[f.key] ? "rgba(34,197,94,0.4)" : "#e2e8f0"}`, fontSize: 13, color: C.navy, outline: "none", background: stepData[f.key] ? "rgba(34,197,94,0.04)" : "#f8fafc", boxSizing: "border-box" }} />
+                  </div>
+                ))}
+              </div>
+              <button onClick={async () => { if (isStep1) { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); } setScreen("step-result"); await callAI(activeStep.prompt); setCompletedSteps(prev => prev.includes(activeStep.id) ? prev : [...prev, activeStep.id]); }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 13, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+                🤖 AI 문서 자동 작성
+              </button>
+            </div>
+          )}
         </div>
         {showScenario && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowScenario(false)}>
@@ -668,6 +824,7 @@ export default function App() {
       </div>
     );
   }
+
 
   if (screen === "edu-form" && activeStep) {
     return (
@@ -699,7 +856,7 @@ export default function App() {
     const stepColor = activeStep.color || C.purple;
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <header dangerouslySetInnerHTML={{ __html: `<style>*{box-sizing:border-box;} @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.4;}}</style>` }} />
+        <style>{`*{box-sizing:border-box;}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}`}</style>
         <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
           <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={() => setScreen(activeStep.uniqueFields ? "step-form" : "edu-form")} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 11px", color: "#fff", fontSize: 13, cursor: "pointer" }}>← 뒤로</button>
@@ -761,6 +918,7 @@ export default function App() {
           )}
         </div>
       </div>
+    </div>
     );
   }
 
