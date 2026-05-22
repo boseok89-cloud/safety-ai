@@ -153,16 +153,36 @@ const C = {
   purple: "#8b5cf6", slate: "#64748b", bg: "#f0f4f8",
 };
 
+// Vercel 인바이런먼트 브라우저 안전장치 확보
 async function saveStorage(key, val) {
-  try { await window.storage.set(key, JSON.stringify(val)); } catch {}
+  try { 
+    if (window.storage && typeof window.storage.set === 'function') {
+      await window.storage.set(key, JSON.stringify(val)); 
+    } else {
+      localStorage.setItem(key, JSON.stringify(val));
+    }
+  } catch {}
 }
+
 async function loadStorage(key) {
-  try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; }
+  try { 
+    if (window.storage && typeof window.storage.get === 'function') {
+      const r = await window.storage.get(key); 
+      return r ? JSON.parse(r.value) : null; 
+    } else {
+      const r = localStorage.getItem(key);
+      return r ? JSON.parse(r) : null;
+    }
+  } catch { return null; }
 }
 
 // 워드 문서 생성 함수 (docx CDN 사용)
 function downloadWordDoc(content, title, baseInfo) {
   try {
+    if (!window.docx) {
+      alert("docx 라이브러리가 로드되지 않았습니다. index.html의 CDN 설정을 확인하세요.");
+      return;
+    }
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
             HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType } = window.docx;
 
@@ -595,7 +615,7 @@ export default function App() {
     const stepColor = activeStep.color;
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <style>{`*{box-sizing:border-box;}input:focus{border-color:${stepColor}!important;background:#fff!important;}`}</style>
+        <header dangerouslySetInnerHTML={{ __html: `<style>*{box-sizing:border-box;} input:focus{border-color:${stepColor}!important; background:#fff!important;}</style>` }} />
         <Header title={`${activeStep.icon} STEP ${activeStep.id} · ${activeStep.title}`} onBack={() => setScreen("home")} />
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "14px 14px 32px" }}>
           {!isStep1 && <BaseInfoBanner />}
@@ -678,7 +698,7 @@ export default function App() {
     const stepColor = activeStep.color || C.purple;
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <style>{`*{box-sizing:border-box;}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}`}</style>
+        <header dangerouslySetInnerHTML={{ __html: `<style>*{box-sizing:border-box;} @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.4;}}</style>` }} />
         <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
           <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={() => setScreen(activeStep.uniqueFields ? "step-form" : "edu-form")} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 11px", color: "#fff", fontSize: 13, cursor: "pointer" }}>← 뒤로</button>
@@ -694,7 +714,7 @@ export default function App() {
               <div style={{ fontSize: 40, marginBottom: 12 }}>{activeStep.icon || "🎓"}</div>
               <div style={{ color: C.navy, fontWeight: 800, fontSize: 15, marginBottom: 6 }}>AI가 문서를 작성하고 있어요</div>
               <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 20 }}>고용노동부 기준으로 생성 중...</div>
-              <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+              <div style={{ display: "center", justifyContent: "center", gap: 8 }}>
                 {[0, 1, 2].map(i => (
                   <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: stepColor, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.4}s` }} />
                 ))}
