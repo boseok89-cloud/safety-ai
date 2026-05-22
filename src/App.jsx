@@ -205,7 +205,7 @@ function downloadWordDoc(content, title, baseInfo) {
         new TableRow({ children: [
           new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
           new TableCell({ borders, margins: cellMargins, width: { size: 3008, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new Run => new TextRun({ text: " ", size: 40 })] })] }), // 고정 안전 공백 처리
+          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
         ]}),
       ],
     }));
@@ -488,7 +488,7 @@ export default function App() {
               <button onClick={() => {
                 const allText = STEPS.filter(s => results[s.id]).map(s => `=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
                 downloadWordDoc(allText, "위험성평가 전체", baseInfo);
-              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifycontent: "center", gap: 8 }}>
                 <span style={{ fontSize: 18 }}>📄</span> 전체 워드 문서 다운로드 ({completedSteps.length}/6 완료)
               </button>
             )}
