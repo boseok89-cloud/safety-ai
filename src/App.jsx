@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 // docx 라이브러리 CDN으로 로드 (index.html에 추가 필요)
 // <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
@@ -126,9 +126,10 @@ async function loadStorage(key) {
   } catch { return null; }
 }
 
+// 📄 워드 생성 및 다운로드 공통 함수 (안정화 완료)
 function downloadWordDoc(content, title, baseInfo) {
   try {
-    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType } = window.docx;
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType } = window.docx;
     
     const borderSetting = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
     const cellMargins = { top: 80, bottom: 80, left: 120, right: 120 };
@@ -189,8 +190,6 @@ function downloadWordDoc(content, title, baseInfo) {
         return;
       }
       const isHeader = line.startsWith("#") || (line.match(/^\d+\./) && line.length < 50);
-      
-      // ✨ 오타 수정 완료: 마크다운 ** 기호를 지워주는 정규식 안정화
       const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\*/g, ""); 
       
       children.push(new Paragraph({
@@ -260,57 +259,7 @@ function downloadWordDoc(content, title, baseInfo) {
   }
 }
 
-    // 4. 안전한 파일명 정제 (공백 및 마침표 제거)
-    const safeCompany = (baseInfo.company || "사업장").replace(/[\s\.]/g, "_");
-    const safeTitle = title.replace(/[\s\.]/g, "_");
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-
-    Packer.toBlob(doc).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `위험성평가_${safeTitle}_${safeCompany}_${dateStr}.docx`;
-      document.body.appendChild(a); // DOM에 명시적 추가 후 클릭 (브라우저 호환성)
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
-  } catch (e) {
-    alert("워드 문서 생성 중 오류가 발생했습니다: " + e.message);
-  }
-}
-    children.push(new Paragraph({
-      children: [new TextRun({ text: "※ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.", size: 18, color: "FF6B00", font: "맑은 고딕" })],
-      spacing: { before: 200 },
-    }));
-
-    const doc = new Document({
-      styles: {
-        default: { document: { run: { font: "맑은 고딕", size: 20 } } },
-        paragraphStyles: [
-          { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 32, bold: true, font: "맑은 고딕", color: "0F2640" }, paragraph: { spacing: { before: 240, after: 240 }, outlineLevel: 0 } },
-          { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 24, bold: true, font: "맑은 고딕", color: "1A3A5C" }, paragraph: { spacing: { before: 180, after: 120 }, outlineLevel: 1 } },
-        ],
-      },
-      sections: [{
-        properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
-        children,
-      }],
-    });
-
-    Packer.toBlob(doc).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `위험성평가_${title}_${baseInfo.company || "사업장"}_${new Date().toLocaleDateString("ko-KR").replace(/\. /g, "").replace(".", "")}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  } catch (e) {
-    alert("워드 문서 생성 중 오류가 발생했습니다: " + e.message);
-  }
-}
-
+// 🏢 메인 App 컴포넌트 선언 시작
 export default function App() {
   const [baseInfo, setBaseInfo] = useState({ company: "", industry: "", workers: "", manager: "" });
   const [baseConfirmed, setBaseConfirmed] = useState(false);
@@ -467,7 +416,7 @@ export default function App() {
     ) : null
   );
 
-  // 템플릿 선택 화면
+  // 1️⃣ 템플릿 선택 화면
   if (screen === "home" && !selectedTemplate) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -504,7 +453,7 @@ export default function App() {
     );
   }
 
-  // 메인 홈 (양식 선택 후)
+  // 2️⃣ 메인 대시보드 화면
   if (screen === "home" && selectedTemplate) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -557,7 +506,7 @@ export default function App() {
               <button onClick={() => {
                 const allText = STEPS.filter(s => results[s.id]).map(s => `=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
                 downloadWordDoc(allText, "위험성평가 전체", baseInfo);
-              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifycontent: "center", gap: 8 }}>
+              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <span style={{ fontSize: 18 }}>📄</span> 전체 워드 문서 다운로드 ({completedSteps.length}/6 완료)
               </button>
             )}
@@ -656,7 +605,7 @@ export default function App() {
     );
   }
 
-  // 각 스텝 폼 화면
+  // 3️⃣ 각 스텝 입력 폼 화면
   if (screen === "step-form" && activeStep) {
     const isStep1 = activeStep.id === 1;
     const isStep2 = activeStep.multiSheet === true;
@@ -762,7 +711,7 @@ export default function App() {
                   <button onClick={() => setShowScenario(true)} style={{ width: "100%", padding: "9px", marginBottom: 12, background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 9, color: C.amber, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🏭 업종별 시나리오로 자동완성</button>
                 )}
                 {activeStep.uniqueFields && activeStep.uniqueFields.map(f => (
-                  <div key={f.key} style={{ marginBottom: 10 }}>
+                  <div key={f.key} style={{ Stadium: "10px", marginBottom: 10 }}>
                     <label style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 }}>
                       {f.label} {stepData[f.key] && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>자동완성</span>}
                     </label>
@@ -799,7 +748,7 @@ export default function App() {
     );
   }
 
-  // 교육 자료 폼 화면
+  // 4️⃣ 교육 자료 폼 화면
   if (screen === "edu-form" && activeStep) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -824,7 +773,7 @@ export default function App() {
     );
   }
 
-  // 최종 문서 결과 화면
+  // 5️⃣ 최종 문서 결과 화면
   if (screen === "step-result" && activeStep) {
     const stepIdx = STEPS.findIndex(s => s.id === activeStep.id);
     const nextStep = stepIdx !== -1 && stepIdx + 1 < STEPS.length ? STEPS[stepIdx + 1] : null;
