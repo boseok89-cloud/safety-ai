@@ -36,48 +36,12 @@ const INDUSTRY_SCENARIOS = {
   },
 };
 
-// 미리 만든 문서 틀
 const DOCUMENT_TEMPLATES = [
-  {
-    id: "standard",
-    icon: "📋",
-    name: "고용노동부 표준 양식",
-    desc: "고시 제2024-76호 기준 6단계 표준 양식",
-    color: "#0ea5e9",
-    tags: ["법정 기준", "전 업종"],
-  },
-  {
-    id: "construction",
-    icon: "🏗️",
-    name: "건설업 전용 양식",
-    desc: "고소작업·중장비·굴착 등 건설 현장 특화",
-    color: "#f59e0b",
-    tags: ["건설업", "고소작업", "중장비"],
-  },
-  {
-    id: "manufacturing",
-    icon: "🏭",
-    name: "제조업 전용 양식",
-    desc: "프레스·화학물질·컨베이어 등 제조 현장 특화",
-    color: "#ef4444",
-    tags: ["제조업", "기계작업", "화학물질"],
-  },
-  {
-    id: "small",
-    icon: "🏪",
-    name: "소규모 사업장 간이 양식",
-    desc: "50인 미만 소규모 사업장용 간소화 양식",
-    color: "#22c55e",
-    tags: ["소규모", "간이", "50인 미만"],
-  },
-  {
-    id: "logistics",
-    icon: "🚛",
-    name: "물류·유통업 전용 양식",
-    desc: "지게차·하역·보관 등 물류 현장 특화",
-    color: "#8b5cf6",
-    tags: ["물류", "지게차", "하역"],
-  },
+  { id: "standard", icon: "📋", name: "고용노동부 표준 양식", desc: "고시 제2024-76호 기준 6단계 표준 양식", color: "#0ea5e9", tags: ["법정 기준", "전 업종"] },
+  { id: "construction", icon: "🏗️", name: "건설업 전용 양식", desc: "고소작업·중장비·굴착 등 건설 현장 특화", color: "#f59e0b", tags: ["건설업", "고소작업", "중장비"] },
+  { id: "manufacturing", icon: "🏭", name: "제조업 전용 양식", desc: "프레스·화학물질·컨베이어 등 제조 현장 특화", color: "#ef4444", tags: ["제조업", "기계작업", "화학물질"] },
+  { id: "small", icon: "🏪", name: "소규모 사업장 간이 양식", desc: "50인 미만 소규모 사업장용 간소화 양식", color: "#22c55e", tags: ["소규모", "간이", "50인 미만"] },
+  { id: "logistics", icon: "🚛", name: "물류·유통업 전용 양식", desc: "지게차·하역·보관 등 물류 현장 특화", color: "#8b5cf6", tags: ["물류", "지게차", "하역"] },
 ];
 
 const BASE_FIELDS = [
@@ -88,7 +52,8 @@ const BASE_FIELDS = [
 ];
 
 const STEPS = [
-  { id: 1, icon: "📁", title: "사전준비", subtitle: "평가팀 구성 및 기준 설정", color: "#0ea5e9",
+  {
+    id: 1, icon: "📁", title: "사전준비", subtitle: "평가팀 구성 및 기준 설정", color: "#0ea5e9",
     uniqueFields: [
       { key: "evalType", label: "평가종류", placeholder: "예: 최초평가 / 정기평가 / 수시평가" },
       { key: "evalDate", label: "평가일자", placeholder: "예: 2026-05-06" },
@@ -97,13 +62,14 @@ const STEPS = [
     ],
     prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 사전준비 단계 문서 작성. 포함: 사업장 기본정보, 법적근거(산업안전보건법 제36조), 평가팀 구성 및 역할, 가능성×중대성 위험성 판단 기준 매트릭스(3×3), 수집자료 목록(재해사례/아차사고/공정정보), 평가일정. 중대성은 시나리오별로 STEP3에서 결정됨을 명시. 전문적으로 한국어로.",
   },
-  { id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "공정별 위험 시나리오 도출", color: "#f59e0b",
-    uniqueFields: [],
-    multiSheet: true,
+  {
+    id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "공정별 위험 시나리오 도출", color: "#f59e0b",
+    uniqueFields: [], multiSheet: true,
     prompt: "고용노동부 고시 제2024-76호 기준 유해·위험요인 파악 단계 문서 작성. 포함: 공정/작업 개요, 기인물별 위험 시나리오 목록표(6개 이상) - 각 시나리오는 [작업상황 → 기인물 → 위험요인 → 예상 재해유형] 형식으로 작성, 유형별 분류(기계적/화학적/물리적/인간공학적), 현재 안전조치 현황. 중대성 평가는 STEP3에서 별도 수행함을 명시. 전문적으로 한국어로.",
     hasScenario: true,
   },
-  { id: 3, icon: "⚖️", title: "위험성 결정", subtitle: "시나리오별 가능성 × 중대성 평가", color: "#ef4444",
+  {
+    id: 3, icon: "⚖️", title: "위험성 결정", subtitle: "시나리오별 가능성 × 중대성 평가", color: "#ef4444",
     uniqueFields: [
       { key: "hazards", label: "STEP2에서 도출된 주요 위험 시나리오", placeholder: "업종 시나리오 선택 또는 STEP2 결과 입력" },
       { key: "method", label: "위험성 추정 방법", placeholder: "예: 빈도·강도법(가능성×중대성) / 핵심요인 기술법" },
@@ -112,7 +78,8 @@ const STEPS = [
     prompt: "고용노동부 고시 제2024-76호 기준 위험성 결정 단계 문서 작성. 핵심: 각 위험 시나리오별로 (1)가능성(상3/중2/하1) (2)중대성(상3/중2/하1) (3)위험성=가능성×중대성 (4)허용여부를 결정하는 표 작성. 포함: 위험성 결정 매트릭스표, 시나리오별 상세 결정 근거, 허용불가 위험성 목록(즉시조치 필요), 중대성 판단기준(사망/중상/경상). 중대성은 이 단계에서 처음 결정됨을 강조. 전문적으로 한국어로.",
     hasScenario: true,
   },
-  { id: 4, icon: "🛡️", title: "감소대책 수립·실행", subtitle: "위험성 제거 및 저감 조치", color: "#22c55e",
+  {
+    id: 4, icon: "🛡️", title: "감소대책 수립·실행", subtitle: "위험성 제거 및 저감 조치", color: "#22c55e",
     uniqueFields: [
       { key: "highRisks", label: "허용불가 위험요인", placeholder: "예: 추락(상), 협착(상), 감전(중)" },
       { key: "budget", label: "개선 가용예산", placeholder: "예: 약 500만원" },
@@ -121,7 +88,8 @@ const STEPS = [
     ],
     prompt: "고용노동부 고시 제2024-76호 기준 위험성 감소대책 수립·실행 단계 문서 작성. 포함: 감소대책 우선순위원칙, 위험요인별 실행계획표, 단기/중장기 조치, 개선전후 위험성 비교, 잔류위험 관리. 실용적으로 한국어로.",
   },
-  { id: 5, icon: "📢", title: "위험성평가 공유", subtitle: "근로자 주지 및 교육", color: "#8b5cf6",
+  {
+    id: 5, icon: "📢", title: "위험성평가 공유", subtitle: "근로자 주지 및 교육", color: "#8b5cf6",
     uniqueFields: [
       { key: "shareMethod", label: "공유 방법", placeholder: "예: 조회시간 교육, 게시판 부착" },
       { key: "shareDate", label: "공유 일자", placeholder: "예: 2026-05-10" },
@@ -129,7 +97,8 @@ const STEPS = [
     ],
     prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 공유 단계 문서 작성. 포함: 공유목적/법적근거, 핵심위험요인 요약, 현장게시용 안전수칙 5가지, 근로자 의견수렴, 서명란. 한국어로.",
   },
-  { id: 6, icon: "📂", title: "기록 및 보존", subtitle: "3년 보존 의무 문서 완성", color: "#64748b",
+  {
+    id: 6, icon: "📂", title: "기록 및 보존", subtitle: "3년 보존 의무 문서 완성", color: "#64748b",
     uniqueFields: [
       { key: "evalPeriod", label: "평가 기간", placeholder: "예: 2026-05-01 ~ 2026-05-10" },
       { key: "totalHazards", label: "총 위험요인 수", placeholder: "예: 15개" },
@@ -143,34 +112,31 @@ const STEPS = [
 ];
 
 const C = {
-  navy: "#0f2640", blue: "#1a3a5c", accent: "#0ea5e9",
-  green: "#22c55e", amber: "#f59e0b", red: "#ef4444",
-  purple: "#8b5cf6", slate: "#64748b", bg: "#f0f4f8",
+  navy: "#0f2640", blue: "#1a3a5c", accent: "#0ea5e9", green: "#22c55e",
+  amber: "#f59e0b", red: "#ef4444", purple: "#8b5cf6", slate: "#64748b", bg: "#f0f4f8",
 };
 
 async function saveStorage(key, val) {
   try { await window.storage.set(key, JSON.stringify(val)); } catch {}
 }
 async function loadStorage(key) {
-  try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; }
+  try {
+    const r = await window.storage.get(key);
+    return r ? JSON.parse(r.value) : null;
+  } catch { return null; }
 }
 
-// 워드 문서 생성 함수 (docx CDN 사용)
 function downloadWordDoc(content, title, baseInfo) {
   try {
-    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-            HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType } = window.docx;
-
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType } = window.docx;
     const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
     const borders = { top: border, bottom: border, left: border, right: border };
     const cellMargins = { top: 80, bottom: 80, left: 120, right: 120 };
-
     const children = [];
 
     // 제목
     children.push(new Paragraph({
-      heading: HeadingLevel.HEADING_1,
-      alignment: AlignmentType.CENTER,
+      heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: title, bold: true, size: 32, font: "맑은 고딕" })],
       spacing: { after: 200 },
     }));
@@ -220,12 +186,7 @@ function downloadWordDoc(content, title, baseInfo) {
       const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\*/g, "");
       children.push(new Paragraph({
         heading: isHeader ? HeadingLevel.HEADING_2 : undefined,
-        children: [new TextRun({
-          text: cleanLine,
-          bold: isHeader,
-          size: isHeader ? 24 : 20,
-          font: "맑은 고딕",
-        })],
+        children: [new TextRun({ text: cleanLine, bold: isHeader, size: isHeader ? 24 : 20, font: "맑은 고딕" })],
         spacing: { before: isHeader ? 200 : 60, after: 60 },
       }));
     });
@@ -242,14 +203,13 @@ function downloadWordDoc(content, title, baseInfo) {
           new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "승인자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
         ]}),
         new TableRow({ children: [
-          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "　", size: 40 })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 3008, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "　", size: 40 })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "　", size: 40 })] })] }),
+          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
+          new TableCell({ borders, margins: cellMargins, width: { size: 3008, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
+          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new Run => new TextRun({ text: " ", size: 40 })] })] }), // 고정 안전 공백 처리
         ]}),
       ],
     }));
 
-    // 주의사항
     children.push(new Paragraph({
       children: [new TextRun({ text: "※ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.", size: 18, color: "FF6B00", font: "맑은 고딕" })],
       spacing: { before: 200 },
@@ -259,21 +219,12 @@ function downloadWordDoc(content, title, baseInfo) {
       styles: {
         default: { document: { run: { font: "맑은 고딕", size: 20 } } },
         paragraphStyles: [
-          { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
-            run: { size: 32, bold: true, font: "맑은 고딕", color: "0F2640" },
-            paragraph: { spacing: { before: 240, after: 240 }, outlineLevel: 0 } },
-          { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true,
-            run: { size: 24, bold: true, font: "맑은 고딕", color: "1A3A5C" },
-            paragraph: { spacing: { before: 180, after: 120 }, outlineLevel: 1 } },
+          { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 32, bold: true, font: "맑은 고딕", color: "0F2640" }, paragraph: { spacing: { before: 240, after: 240 }, outlineLevel: 0 } },
+          { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 24, bold: true, font: "맑은 고딕", color: "1A3A5C" }, paragraph: { spacing: { before: 180, after: 120 }, outlineLevel: 1 } },
         ],
       },
       sections: [{
-        properties: {
-          page: {
-            size: { width: 11906, height: 16838 },
-            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-          },
-        },
+        properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
         children,
       }],
     });
@@ -306,7 +257,7 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [showScenario, setShowScenario] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  // 공정별 Sheet 관리 (STEP2 전용)
+
   const [sheets, setSheets] = useState([
     { id: 1, workArea: "", workType: "", equipment: "", materials: "", currentSafety: "", result: "" }
   ]);
@@ -336,9 +287,7 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1500,
-          system: prompt,
+          model: "claude-sonnet-4-6", max_tokens: 1500, system: prompt,
           messages: [{ role: "user", content: `다음 정보로 문서를 작성해주세요:\n\n${info}` }],
         }),
       });
@@ -346,13 +295,10 @@ export default function App() {
       const text = d.content?.map(b => b.text || "").join("") || "오류가 발생했습니다.";
       setResult(text);
       if (activeStep?.id) setResults(prev => ({ ...prev, [activeStep.id]: text }));
+
       const entry = {
-        id: Date.now(),
-        step: activeStep?.title,
-        company: baseInfo.company || "미입력",
-        date: new Date().toLocaleDateString("ko-KR"),
-        preview: text.slice(0, 60) + "...",
-        full: text,
+        id: Date.now(), step: activeStep?.title, company: baseInfo.company || "미입력",
+        date: new Date().toLocaleDateString("ko-KR"), preview: text.slice(0, 60) + "...", full: text,
       };
       const newH = [entry, ...history].slice(0, 20);
       setHistory(newH);
@@ -367,37 +313,24 @@ export default function App() {
   const applyScenario = (industry) => {
     const sc = INDUSTRY_SCENARIOS[industry];
     if (!sc) return;
-    // Sheet 모드일 때는 현재 활성 Sheet에 적용
     if (activeStep?.multiSheet) {
       setSheets(prev => prev.map(s => s.id === activeSheetId ? {
-        ...s,
-        workType: sc.workTypes.join(", "),
-        equipment: sc.equipments.join(", "),
-        materials: sc.materials.join(", "),
-        currentSafety: "",
+        ...s, workType: sc.workTypes.join(", "), equipment: sc.equipments.join(", "), materials: sc.materials.join(", "), currentSafety: "",
       } : s));
     } else {
       setStepData(prev => ({
-        ...prev,
-        workType: sc.workTypes.join(", "),
-        equipment: sc.equipments.join(", "),
-        materials: sc.materials.join(", "),
-        hazards: sc.hazards.join(", "),
+        ...prev, workType: sc.workTypes.join(", "), equipment: sc.equipments.join(", "), materials: sc.materials.join(", "), hazards: sc.hazards.join(", "),
       }));
     }
     setShowScenario(false);
   };
 
-  // Sheet 추가
   const addSheet = () => {
     const newId = Math.max(...sheets.map(s => s.id)) + 1;
-    setSheets(prev => [...prev, {
-      id: newId, workArea: "", workType: "", equipment: "", materials: "", currentSafety: "", result: ""
-    }]);
+    setSheets(prev => [...prev, { id: newId, workArea: "", workType: "", equipment: "", materials: "", currentSafety: "", result: "" }]);
     setActiveSheetId(newId);
   };
 
-  // Sheet 삭제
   const removeSheet = (id) => {
     if (sheets.length <= 1) return;
     const remaining = sheets.filter(s => s.id !== id);
@@ -405,12 +338,10 @@ export default function App() {
     if (activeSheetId === id) setActiveSheetId(remaining[0].id);
   };
 
-  // Sheet 필드 업데이트
   const updateSheet = (id, field, value) => {
     setSheets(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
-  // Sheet별 AI 문서 작성
   const callAIForSheet = async (sheet) => {
     setSheetLoading(prev => ({ ...prev, [sheet.id]: true }));
     const allData = { ...baseInfo, ...sheet };
@@ -420,20 +351,17 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1500,
-          system: STEPS[1].prompt,
+          model: "claude-sonnet-4-6", max_tokens: 1500, system: STEPS[1].prompt,
           messages: [{ role: "user", content: `다음 공정의 위험요인을 파악해주세요:\n\n${info}` }],
         }),
       });
       const d = await res.json();
       const text = d.content?.map(b => b.text || "").join("") || "오류가 발생했습니다.";
       setSheets(prev => prev.map(s => s.id === sheet.id ? { ...s, result: text } : s));
-      // 이력 저장
+
       const entry = {
-        id: Date.now(), step: `유해위험요인파악 - ${sheet.workArea || "공정" + sheet.id}`,
-        company: baseInfo.company || "미입력", date: new Date().toLocaleDateString("ko-KR"),
-        preview: text.slice(0, 60) + "...", full: text,
+        id: Date.now(), step: `유해위험요인파악 - ${sheet.workArea || "공정" + sheet.id}`, company: baseInfo.company || "미입력",
+        date: new Date().toLocaleDateString("ko-KR"), preview: text.slice(0, 60) + "...", full: text,
       };
       const newH = [entry, ...history].slice(0, 20);
       setHistory(newH);
@@ -445,11 +373,8 @@ export default function App() {
     }
   };
 
-  // 전체 Sheet 결과 합치기 (STEP3용)
   const getAllSheetsResult = () => {
-    return sheets.filter(s => s.result).map((s, i) =>
-      `[공정 ${i+1}: ${s.workArea || "미입력"}]\n${s.result}`
-    ).join("\n\n");
+    return sheets.filter(s => s.result).map((s, i) => `[공정 ${i + 1}: ${s.workArea || "미입력"}]\n${s.result}`).join("\n\n");
   };
 
   const Header = ({ title, onBack }) => (
@@ -503,14 +428,14 @@ export default function App() {
             </button>
           ))}
           <div style={{ padding: "12px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7, marginTop: 4 }}>
-            📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
+            📌 🛠️ 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
           </div>
         </div>
       </div>
     );
   }
 
-  // 메인 홈
+  // 메인 홈 (양식 선택 후)
   if (screen === "home" && selectedTemplate) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -587,9 +512,6 @@ export default function App() {
                 );
               })}
             </div>
-            <div style={{ marginTop: 10, padding: "11px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
-              📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
-            </div>
           </div>
         )}
 
@@ -662,10 +584,10 @@ export default function App() {
           </div>
         )}
       </div>
-    </div>
     );
   }
 
+  // 각 스텝 폼 화면
   if (screen === "step-form" && activeStep) {
     const isStep1 = activeStep.id === 1;
     const isStep2 = activeStep.multiSheet === true;
@@ -678,6 +600,7 @@ export default function App() {
       { key: "materials", label: "취급 원자재/화학물질", placeholder: "예: 시멘트, LPG, 유기용제" },
       { key: "currentSafety", label: "현재 안전조치", placeholder: "예: 안전난간 설치, 안전대 지급" },
     ];
+
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
         <style>{`*{box-sizing:border-box;}input:focus{border-color:${stepColor}!important;background:#fff!important;}`}</style>
@@ -687,8 +610,7 @@ export default function App() {
           {isStep1 && (
             <div style={{ background: "#fff", borderRadius: 14, padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
-                🏢 사업장 공통정보
-                <span style={{ fontSize: 11, color: C.accent, fontWeight: 600, background: `${C.accent}12`, padding: "2px 8px", borderRadius: 20, marginLeft: 6 }}>2~6단계 자동적용</span>
+                🏢 사업장 공통정보 <span style={{ fontSize: 11, color: C.accent, fontWeight: 600, background: `${C.accent}12`, padding: "2px 8px", borderRadius: 20, marginLeft: 6 }}>2~6단계 자동적용</span>
               </div>
               {BASE_FIELDS.map(f => (
                 <div key={f.key} style={{ marginBottom: 10 }}>
@@ -705,12 +627,7 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
                   {sheets.map((s, i) => (
                     <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <button onClick={() => setActiveSheetId(s.id)} style={{
-                        padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer",
-                        background: activeSheetId === s.id ? stepColor : "#e2e8f0",
-                        color: activeSheetId === s.id ? "#fff" : C.slate,
-                        fontSize: 12, fontWeight: 700,
-                      }}>
+                      <button onClick={() => setActiveSheetId(s.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: activeSheetId === s.id ? stepColor : "#e2e8f0", color: activeSheetId === s.id ? "#fff" : C.slate, fontSize: 12, fontWeight: 700 }}>
                         {s.result ? "✅ " : ""}{s.workArea ? s.workArea.slice(0, 8) + (s.workArea.length > 8 ? ".." : "") : `공정 ${i + 1}`}
                       </button>
                       {sheets.length > 1 && (
@@ -718,10 +635,7 @@ export default function App() {
                       )}
                     </div>
                   ))}
-                  <button onClick={addSheet} style={{
-                    padding: "6px 12px", borderRadius: 8, border: `1.5px dashed ${C.accent}`,
-                    background: `${C.accent}08`, color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  }}>+ 공정 추가</button>
+                  <button onClick={addSheet} style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px dashed ${C.accent}`, background: `${C.accent}08`, color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ 공정 추가</button>
                 </div>
                 <div style={{ fontSize: 11, color: "#94a3b8" }}>공정/작업별로 Sheet를 추가해서 각각 위험요인을 파악하세요</div>
               </div>
@@ -731,31 +645,17 @@ export default function App() {
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
                     🏭 {activeSheet.workArea || `공정 ${sheets.findIndex(s => s.id === activeSheetId) + 1}`}
                   </div>
-                  <button onClick={() => setShowScenario(true)} style={{
-                    padding: "5px 10px", background: "rgba(245,158,11,0.08)",
-                    border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 8,
-                    color: C.amber, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                  }}>🏭 시나리오</button>
+                  <button onClick={() => setShowScenario(true)} style={{ padding: "5px 10px", background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 8, color: C.amber, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🏭 시나리오</button>
                 </div>
                 {SHEET_FIELDS.map(f => (
                   <div key={f.key} style={{ marginBottom: 10 }}>
                     <label style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 }}>
-                      {f.label}
-                      {activeSheet[f.key] && f.key !== "workArea" && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>자동완성</span>}
+                      {f.label} {activeSheet[f.key] && f.key !== "workArea" && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>자동완성</span>}
                     </label>
-                    <input
-                      value={activeSheet[f.key] || ""}
-                      onChange={e => updateSheet(activeSheetId, f.key, e.target.value)}
-                      placeholder={f.placeholder}
-                      style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${activeSheet[f.key] && f.key !== "workArea" ? "rgba(34,197,94,0.4)" : "#e2e8f0"}`, fontSize: 13, color: C.navy, outline: "none", background: activeSheet[f.key] && f.key !== "workArea" ? "rgba(34,197,94,0.04)" : "#f8fafc", boxSizing: "border-box" }}
-                    />
+                    <input value={activeSheet[f.key] || ""} onChange={e => updateSheet(activeSheetId, f.key, e.target.value)} placeholder={f.placeholder} style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${activeSheet[f.key] && f.key !== "workArea" ? "rgba(34,197,94,0.4)" : "#e2e8f0"}`, fontSize: 13, color: C.navy, outline: "none", background: activeSheet[f.key] && f.key !== "workArea" ? "rgba(34,197,94,0.04)" : "#f8fafc", boxSizing: "border-box" }} />
                   </div>
                 ))}
-                <button
-                  onClick={() => callAIForSheet(activeSheet)}
-                  disabled={!!sheetLoading[activeSheetId]}
-                  style={{ width: "100%", padding: "12px", background: sheetLoading[activeSheetId] ? "rgba(245,158,11,0.3)" : `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 11, color: "#fff", fontSize: 13, fontWeight: 700, cursor: sheetLoading[activeSheetId] ? "not-allowed" : "pointer" }}
-                >
+                <button onClick={() => callAIForSheet(activeSheet)} disabled={!!sheetLoading[activeSheetId]} style={{ width: "100%", padding: "12px", background: sheetLoading[activeSheetId] ? "rgba(245,158,11,0.3)" : `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 11, color: "#fff", fontSize: 13, fontWeight: 700, cursor: sheetLoading[activeSheetId] ? "not-allowed" : "pointer" }}>
                   {sheetLoading[activeSheetId] ? "⏳ AI가 위험요인 파악 중..." : "🤖 이 공정 위험요인 AI 파악"}
                 </button>
                 {activeSheet.result && (
@@ -772,7 +672,6 @@ export default function App() {
                 </div>
                 <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>모든 공정 파악 후 다음 단계로 진행하세요</div>
               </div>
-
               <button onClick={async () => {
                 const allResult = getAllSheetsResult();
                 if (!allResult) { alert("최소 1개 공정의 위험요인을 먼저 파악해주세요!"); return; }
@@ -802,12 +701,18 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <button onClick={async () => { if (isStep1) { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); } setScreen("step-result"); await callAI(activeStep.prompt); setCompletedSteps(prev => prev.includes(activeStep.id) ? prev : [...prev, activeStep.id]); }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 13, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+              <button onClick={async () => {
+                if (isStep1) { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); }
+                setScreen("step-result");
+                await callAI(activeStep.prompt);
+                setCompletedSteps(prev => prev.includes(activeStep.id) ? prev : [...prev, activeStep.id]);
+              }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${stepColor}, ${stepColor}cc)`, border: "none", borderRadius: 13, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
                 🤖 AI 문서 자동 작성
               </button>
             </div>
           )}
         </div>
+
         {showScenario && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowScenario(false)}>
             <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", width: "100%", maxWidth: 560 }} onClick={e => e.stopPropagation()}>
@@ -825,7 +730,7 @@ export default function App() {
     );
   }
 
-
+  // 교육 자료 폼 화면
   if (screen === "edu-form" && activeStep) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -850,22 +755,25 @@ export default function App() {
     );
   }
 
+  // 최종 문서 결과 화면
   if (screen === "step-result" && activeStep) {
     const stepIdx = STEPS.findIndex(s => s.id === activeStep.id);
-    const nextStep = STEPS[stepIdx + 1];
+    const nextStep = stepIdx !== -1 && stepIdx + 1 < STEPS.length ? STEPS[stepIdx + 1] : null;
     const stepColor = activeStep.color || C.purple;
+
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
         <style>{`*{box-sizing:border-box;}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}`}</style>
         <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
           <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => setScreen(activeStep.uniqueFields ? "step-form" : "edu-form")} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 11px", color: "#fff", fontSize: 13, cursor: "pointer" }}>← 뒤로</button>
+            <button onClick={() => setScreen(activeStep.id ? "step-form" : "edu-form")} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 11px", color: "#fff", fontSize: 13, cursor: "pointer" }}>← 뒤로</button>
             <div style={{ flex: 1, color: "#fff", fontSize: 14, fontWeight: 700 }}>{activeStep.icon || "🎓"} {activeStep.title} 결과</div>
             {!loading && result && (
               <button onClick={() => navigator.clipboard.writeText(result)} style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>📋 복사</button>
             )}
           </div>
         </div>
+
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 32px" }}>
           {loading ? (
             <div style={{ background: "#fff", borderRadius: 20, padding: "50px 20px", textAlign: "center" }}>
@@ -887,9 +795,11 @@ export default function App() {
                   <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 2 }}>{baseInfo.company || "사업장"} · {new Date().toLocaleDateString("ko-KR")}</div>
                 </div>
               </div>
+
               <button onClick={() => downloadWordDoc(result, activeStep.title, baseInfo)} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <span style={{ fontSize: 18 }}>📄</span> 워드 문서(.docx) 다운로드
               </button>
+
               <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", marginBottom: 12 }}>
                 <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -905,6 +815,7 @@ export default function App() {
                   <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 13, lineHeight: 1.8, color: "#1e293b", margin: 0, fontFamily: "'Noto Sans KR', sans-serif" }}>{result}</pre>
                 </div>
               </div>
+
               {nextStep && (
                 <button onClick={() => { setActiveStep(nextStep); setStepData({}); setResult(results[nextStep.id] || ""); setScreen("step-form"); }} style={{ width: "100%", padding: "14px", marginBottom: 8, background: `linear-gradient(135deg, ${nextStep.color}, ${nextStep.color}cc)`, border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                   다음 → STEP {nextStep.id}: {nextStep.title} {nextStep.icon}
@@ -918,7 +829,6 @@ export default function App() {
           )}
         </div>
       </div>
-    </div>
     );
   }
 
