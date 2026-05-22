@@ -430,7 +430,7 @@ export default function App() {
         </div>
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 6 }}>문서 양식을 선택해주세요</div>
-          <div style={{ fontSize: 13, color: C.slate, marginBottom: 20 }}>업종과 사업장 규모에 맞는 양식을 선택하면 최적화된 문서를 작성해드려요</div>
+          <div style={{ fontSize: 13, color: C.slate, marginBottom: 20 }}>업종 and 사업장 규모에 맞는 양식을 선택하면 최적화된 문서를 작성해드려요</div>
           {DOCUMENT_TEMPLATES.map(tmpl => (
             <button key={tmpl.id} onClick={async () => { setSelectedTemplate(tmpl); await saveStorage("selected-template", tmpl); }} style={{ width: "100%", background: "#fff", border: `2px solid ${tmpl.color}30`, borderRadius: 14, padding: "16px", marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", textAlign: "left", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: `${tmpl.color}15`, border: `2px solid ${tmpl.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{tmpl.icon}</div>
@@ -454,159 +454,160 @@ export default function App() {
     );
   }
 
-  // 메인 홈
+  // 메인 홈 (★ 형제 요소를 Fragment <> </>로 감싸 에러를 해결한 부분입니다)
   if (screen === "home" && selectedTemplate) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
-        <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "20px 16px 16px" }}>
-          <div style={{ maxWidth: 560, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 22 }}>{selectedTemplate.icon}</span>
-                <div>
-                  <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>{selectedTemplate.name}</div>
-                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>고용노동부 고시 제2024-76호 기준</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => setShowProfileModal(true)} style={{ background: baseConfirmed ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {baseConfirmed ? "✅ 프로필" : "🏢 프로필"}
-                </button>
-                <button onClick={async () => { setSelectedTemplate(null); await saveStorage("selected-template", null); }} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, cursor: "pointer" }}>양식변경</button>
-              </div>
-            </div>
-            {baseConfirmed && (
-              <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 10, padding: "9px 13px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 16 }}>🏢</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{baseInfo.company}</div>
-                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11 }}>{baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div>
-                </div>
-                <div style={{ color: "#4ade80", fontSize: 10, fontWeight: 700 }}>전 단계 자동적용</div>
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 4 }}>
-              {STEPS.map((s, i) => (
-                <div key={s.id} style={{ flex: 1, height: 4, borderRadius: 3, background: completedSteps.includes(i + 1) ? C.green : "rgba(255,255,255,0.18)" }} />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ maxWidth: 560, margin: "0 auto", padding: "12px 14px 0" }}>
-          <div style={{ display: "flex", background: "#e2e8f0", borderRadius: 11, padding: 3, gap: 3 }}>
-            {[{ k: "assessment", l: "📋 위험성평가" }, { k: "education", l: "🎓 교육자료" }, { k: "history", l: "📜 이력" }].map(t => (
-              <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", background: tab === t.k ? "#fff" : "transparent", color: tab === t.k ? C.navy : C.slate, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t.l}</button>
-            ))}
-          </div>
-        </div>
-
-        {tab === "assessment" && (
-          <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
-            {completedSteps.length > 0 && (
-              <button onClick={() => {
-                const allText = STEPS.filter(s => results[s.id]).map(s => `=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
-                downloadWordDoc(allText, "위험성평가 전체", baseInfo);
-              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>📄</span> 전체 워드 문서 다운로드 ({completedSteps.length}/6 완료)
-              </button>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {STEPS.map((s, i) => {
-                const done = completedSteps.includes(i + 1);
-                return (
-                  <button key={s.id} onClick={() => { setActiveStep(s); setStepData({}); setResult(results[s.id] || ""); setScreen("step-form"); }} style={{ background: "#fff", border: `2px solid ${done ? C.green : "#e2e8f0"}`, borderRadius: 13, padding: "13px 15px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: done ? `${C.green}18` : `${s.color}12`, border: `2px solid ${done ? C.green : s.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19 }}>{done ? "✅" : s.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: `${s.color}15`, padding: "1px 7px", borderRadius: 20 }}>STEP {s.id}</span>
-                        {done && <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>완료</span>}
-                        {s.id === 1 && !baseConfirmed && <span style={{ fontSize: 10, color: C.amber, fontWeight: 700 }}>← 여기서 시작!</span>}
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{s.title}</div>
-                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{s.id === 1 ? "사업장 공통정보 입력 → 전 단계 자동적용" : s.subtitle}</div>
-                    </div>
-                    <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: 10, padding: "11px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
-              📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
-            </div>
-          </div>
-        )}
-
-        {tab === "education" && (
-          <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
-            {[
-              { icon: "🎓", title: "위험성평가 실시 전 교육", badge: "사전교육", color: C.accent, when: "평가 시작 전", prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 실시 전 교육자료 작성. 포함: 정의/목적, 법적의무, 역할분담, 6단계 절차, 판단기준 매트릭스, O/X 퀴즈 5문제. 쉽게 한국어로." },
-              { icon: "📝", title: "개선대책 이행 후 교육", badge: "완료 후", color: C.green, when: "감소대책 완료 후", prompt: "위험성평가 감소대책 이행 후 교육자료 작성. 포함: 평가결과 요약, 개선조치 상세, 변경된 작업방법, 잔류위험 주의, O/X 퀴즈 5문제. 한국어로." },
-              { icon: "🔄", title: "정기 안전교육 (위험성평가 연계)", badge: "정기교육", color: C.amber, when: "월 1회 또는 분기별", prompt: "월례 정기 안전교육자료를 위험성평가 결과와 연계해 작성. 포함: 핵심메시지, 평가결과 복습, 중점 위험요인 교육, TBM 질문 5개. 한국어로." },
-              { icon: "👷", title: "신규 채용자 교육", badge: "신규자", color: C.purple, when: "채용 즉시", prompt: "신규 채용자 위험성평가 결과 교육자료 작성. 포함: 현장 소개, 주요위험요인, 보호구 착용법, 절대금지 행위, 비상대응절차, 퀴즈 5문제. 쉽게 한국어로." },
-            ].map(edu => (
-              <button key={edu.title} onClick={() => { setActiveStep(edu); setStepData({}); setResult(""); setScreen("edu-form"); }} style={{ width: "100%", background: "#fff", border: "2px solid #e2e8f0", borderRadius: 13, padding: "14px 15px", marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", textAlign: "left" }}>
-                <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0, background: `${edu.color}12`, border: `2px solid ${edu.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{edu.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: edu.color, padding: "2px 8px", borderRadius: 20 }}>{edu.badge}</span>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginTop: 4, marginBottom: 2 }}>{edu.title}</div>
-                  <div style={{ fontSize: 11, color: edu.color, fontWeight: 600 }}>📅 {edu.when}</div>
-                </div>
-                <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {tab === "history" && (
-          <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
-            {history.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "50px 0", color: "#94a3b8" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📜</div>
-                <div style={{ fontWeight: 700 }}>아직 작성된 문서가 없어요</div>
-              </div>
-            ) : (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, color: C.slate, fontWeight: 600 }}>최근 {history.length}건</div>
-                  <button onClick={async () => { setHistory([]); await saveStorage("eval-history", []); }} style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>전체삭제</button>
-                </div>
-                {history.map(h => (
-                  <div key={h.id} style={{ background: "#fff", borderRadius: 12, padding: "14px", marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{h.step}</div>
-                        <div style={{ fontSize: 11, color: "#94a3b8" }}>{h.company} · {h.date}</div>
-                      </div>
-                      <button onClick={() => navigator.clipboard.writeText(h.full)} style={{ background: `${C.accent}12`, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: "4px 10px", color: C.accent, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>복사</button>
-                    </div>
-                    <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{h.preview}</div>
+        <>
+          <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding: "20px 16px 16px" }}>
+            <div style={{ maxWidth: 560, margin: "0 auto" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>{selectedTemplate.icon}</span>
+                  <div>
+                    <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>{selectedTemplate.name}</div>
+                    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>고용노동부 고시 제2024-76호 기준</div>
                   </div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => setShowProfileModal(true)} style={{ background: baseConfirmed ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {baseConfirmed ? "✅ 프로필" : "🏢 프로필"}
+                  </button>
+                  <button onClick={async () => { setSelectedTemplate(null); await saveStorage("selected-template", null); }} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: "6px 9px", color: "#fff", fontSize: 11, cursor: "pointer" }}>양식변경</button>
+                </div>
+              </div>
+              {baseConfirmed && (
+                <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 10, padding: "9px 13px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>🏢</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{baseInfo.company}</div>
+                    <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11 }}>{baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div>
+                  </div>
+                  <div style={{ color: "#4ade80", fontSize: 10, fontWeight: 700 }}>전 단계 자동적용</div>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 4 }}>
+                {STEPS.map((s, i) => (
+                  <div key={s.id} style={{ flex: 1, height: 4, borderRadius: 3, background: completedSteps.includes(i + 1) ? C.green : "rgba(255,255,255,0.18)" }} />
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        {showProfileModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowProfileModal(false)}>
-            <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", width: "100%", maxWidth: 560 }} onClick={e => e.stopPropagation()}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>🏢 회사 프로필 저장</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>저장하면 앱을 닫아도 자동 불러와요</div>
-              {BASE_FIELDS.map(f => (
-                <div key={f.key} style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 5 }}>{f.label}</label>
-                  <input value={baseInfo[f.key] || ""} onChange={e => setBaseInfo(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 14, color: C.navy, outline: "none", background: "#f8fafc", boxSizing: "border-box" }} />
-                </div>
-              ))}
-              <button onClick={async () => { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); setShowProfileModal(false); alert("저장됐어요!"); }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
-                💾 저장하기
-              </button>
             </div>
           </div>
-        )}
+
+          <div style={{ maxWidth: 560, margin: "0 auto", padding: "12px 14px 0" }}>
+            <div style={{ display: "flex", background: "#e2e8f0", borderRadius: 11, padding: 3, gap: 3 }}>
+              {[{ k: "assessment", l: "📋 위험성평가" }, { k: "education", l: "🎓 교육자료" }, { k: "history", l: "📜 이력" }].map(t => (
+                <button key={t.k} onClick={() => setTab(t.k)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", background: tab === t.k ? "#fff" : "transparent", color: tab === t.k ? C.navy : C.slate, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t.l}</button>
+              ))}
+            </div>
+          </div>
+
+          {tab === "assessment" && (
+            <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
+              {completedSteps.length > 0 && (
+                <button onClick={() => {
+                  const allText = STEPS.filter(s => results[s.id]).map(s => `=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
+                  downloadWordDoc(allText, "위험성평가 전체", baseInfo);
+                }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>📄</span> 전체 워드 문서 다운로드 ({completedSteps.length}/6 완료)
+                </button>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {STEPS.map((s, i) => {
+                  const done = completedSteps.includes(i + 1);
+                  return (
+                    <button key={s.id} onClick={() => { setActiveStep(s); setStepData({}); setResult(results[s.id] || ""); setScreen("step-form"); }} style={{ background: "#fff", border: `2px solid ${done ? C.green : "#e2e8f0"}`, borderRadius: 13, padding: "13px 15px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: done ? `${C.green}18` : `${s.color}12`, border: `2px solid ${done ? C.green : s.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19 }}>{done ? "✅" : s.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: `${s.color}15`, padding: "1px 7px", borderRadius: 20 }}>STEP {s.id}</span>
+                          {done && <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>완료</span>}
+                          {s.id === 1 && !baseConfirmed && <span style={{ fontSize: 10, color: C.amber, fontWeight: 700 }}>← 여기서 시작!</span>}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{s.title}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{s.id === 1 ? "사업장 공통정보 입력 → 전 단계 자동적용" : s.subtitle}</div>
+                      </div>
+                      <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 10, padding: "11px 14px", background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 10, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
+                📌 산업안전보건법 제36조 — 상시근로자 1인 이상 전 사업장 의무 실시 · 결과 <strong>3년 보존</strong>
+              </div>
+            </div>
+          )}
+
+          {tab === "education" && (
+            <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
+              {[
+                { icon: "🎓", title: "위험성평가 실시 전 교육", badge: "사전교육", color: C.accent, when: "평가 시작 전", prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 실시 전 교육자료 작성. 포함: 정의/목적, 법적의무, 역할분담, 6단계 절차, 판단기준 매트릭스, O/X 퀴즈 5문제. 쉽게 한국어로." },
+                { icon: "📝", title: "개선대책 이행 후 교육", badge: "완료 후", color: C.green, when: "감소대책 완료 후", prompt: "위험성평가 감소대책 이행 후 교육자료 작성. 포함: 평가결과 요약, 개선조치 상세, 변경된 작업방법, 잔류위험 주의, O/X 퀴즈 5문제. 한국어로." },
+                { icon: "🔄", title: "정기 안전교육 (위험성평가 연계)", badge: "정기교육", color: C.amber, when: "월 1회 또는 분기별", prompt: "월례 정기 안전교육자료를 위험성평가 결과와 연계해 작성. 포함: 핵심메시지, 평가결과 복습, 중점 위험요인 교육, TBM 질문 5개. 한국어로." },
+                { icon: "👷", title: "신규 채용자 교육", badge: "신규자", color: C.purple, when: "채용 즉시", prompt: "신규 채용자 위험성평가 결과 교육자료 작성. 포함: 현장 소개, 주요위험요인, 보호구 착용법, 절대금지 행위, 비상대응절차, 퀴즈 5문제. 쉽게 한국어로." },
+              ].map(edu => (
+                <button key={edu.title} onClick={() => { setActiveStep(edu); setStepData({}); setResult(""); setScreen("edu-form"); }} style={{ width: "100%", background: "#fff", border: "2px solid #e2e8f0", borderRadius: 13, padding: "14px 15px", marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", textAlign: "left" }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0, background: `${edu.color}12`, border: `2px solid ${edu.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{edu.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: edu.color, padding: "2px 8px", borderRadius: 20 }}>{edu.badge}</span>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginTop: 4, marginBottom: 2 }}>{edu.title}</div>
+                    <div style={{ fontSize: 11, color: edu.color, fontWeight: 600 }}>📅 {edu.when}</div>
+                  </div>
+                  <div style={{ color: "#cbd5e1", fontSize: 18 }}>›</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tab === "history" && (
+            <div style={{ maxWidth: 560, margin: "0 auto", padding: "10px 14px 28px" }}>
+              {history.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "50px 0", color: "#94a3b8" }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📜</div>
+                  <div style={{ fontWeight: 700 }}>아직 작성된 문서가 없어요</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: C.slate, fontWeight: 600 }}>최근 {history.length}건</div>
+                    <button onClick={async () => { setHistory([]); await saveStorage("eval-history", []); }} style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>전체삭제</button>
+                  </div>
+                  {history.map(h => (
+                    <div key={h.id} style={{ background: "#fff", borderRadius: 12, padding: "14px", marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{h.step}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{h.company} · {h.date}</div>
+                        </div>
+                        <button onClick={() => navigator.clipboard.writeText(h.full)} style={{ background: `${C.accent}12`, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: "4px 10px", color: C.accent, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>복사</button>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{h.preview}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showProfileModal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }} onClick={() => setShowProfileModal(false)}>
+              <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", width: "100%", maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 4 }}>🏢 회사 프로필 저장</div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>저장하면 앱을 닫아도 자동 불러와요</div>
+                {BASE_FIELDS.map(f => (
+                  <div key={f.key} style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 5 }}>{f.label}</label>
+                    <input value={baseInfo[f.key] || ""} onChange={e => setBaseInfo(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 14, color: C.navy, outline: "none", background: "#f8fafc", boxSizing: "border-box" }} />
+                  </div>
+                ))}
+                <button onClick={async () => { setBaseConfirmed(true); await saveStorage("company-profile", baseInfo); setShowProfileModal(false); alert("저장됐어요!"); }} style={{ width: "100%", padding: "14px", background: `linear-gradient(135deg, ${C.navy}, ${C.blue})`, border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
+                  💾 저장하기
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       </div>
-    </div>
     );
   }
 
@@ -714,7 +715,7 @@ export default function App() {
               <div style={{ fontSize: 40, marginBottom: 12 }}>{activeStep.icon || "🎓"}</div>
               <div style={{ color: C.navy, fontWeight: 800, fontSize: 15, marginBottom: 6 }}>AI가 문서를 작성하고 있어요</div>
               <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 20 }}>고용노동부 기준으로 생성 중...</div>
-              <div style={{ display: "center", justifyContent: "center", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
                 {[0, 1, 2].map(i => (
                   <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: stepColor, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.4}s` }} />
                 ))}
@@ -760,7 +761,6 @@ export default function App() {
           )}
         </div>
       </div>
-    </div>
     );
   }
 
