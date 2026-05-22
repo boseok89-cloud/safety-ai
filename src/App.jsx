@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 // docx 라이브러리 CDN으로 로드 (index.html에 추가 필요)
 // <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
@@ -126,11 +126,12 @@ async function loadStorage(key) {
   } catch { return null; }
 }
 
+// 📄 워드 생성 및 다운로드 공통 함수 (안정화 완료)
 function downloadWordDoc(content, title, baseInfo) {
   try {
-    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType } = window.docx;
-    const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
-    const borders = { top: border, bottom: border, left: border, right: border };
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType } = window.docx;
+    
+    const borderSetting = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
     const cellMargins = { top: 80, bottom: 80, left: 120, right: 120 };
     const children = [];
 
@@ -141,36 +142,42 @@ function downloadWordDoc(content, title, baseInfo) {
       spacing: { after: 200 },
     }));
 
-    // 기본정보 표
+    // 기본정보 표 타이틀
     children.push(new Paragraph({
       children: [new TextRun({ text: "■ 사업장 기본정보", bold: true, size: 24, font: "맑은 고딕" })],
       spacing: { before: 200, after: 100 },
     }));
 
+    // 기본정보 표
     children.push(new Table({
-      width: { size: 9026, type: WidthType.DXA },
-      columnWidths: [2257, 2256, 2257, 2256],
+      width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
-        new TableRow({ children: [
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 2257, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "사업장명", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 2256, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.company || "", size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 2257, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "업종", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 2256, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.industry || "", size: 20, font: "맑은 고딕" })] })] }),
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 2257, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "근로자수", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 2256, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.workers || "", size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 2257, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "안전관리자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 2256, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.manager || "", size: 20, font: "맑은 고딕" })] })] }),
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 2257, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "작성일", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, columnSpan: 3, width: { size: 6769, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: new Date().toLocaleDateString("ko-KR"), size: 20, font: "맑은 고딕" })] })] }),
-        ]}),
+        new TableRow({
+          children: [
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: "사업장명", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.company || "", size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: "업종", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.industry || "", size: 20, font: "맑은 고딕" })] })] }),
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: "근로자수", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.workers || "", size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: "안전관리자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: baseInfo.manager || "", size: 20, font: "맑은 고딕" })] })] }),
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: "작성일", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, columnSpan: 3, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: new Date().toLocaleDateString("ko-KR"), size: 20, font: "맑은 고딕" })] })] }),
+          ]
+        }),
       ],
     }));
 
-    // 본문 내용
+    // 본문 내용 처리
     children.push(new Paragraph({
       children: [new TextRun({ text: "■ 평가 내용", bold: true, size: 24, font: "맑은 고딕" })],
       spacing: { before: 300, after: 100 },
@@ -183,7 +190,8 @@ function downloadWordDoc(content, title, baseInfo) {
         return;
       }
       const isHeader = line.startsWith("#") || (line.match(/^\d+\./) && line.length < 50);
-      const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\*/g, "");
+      const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\*/g, ""); 
+      
       children.push(new Paragraph({
         heading: isHeader ? HeadingLevel.HEADING_2 : undefined,
         children: [new TextRun({ text: cleanLine, bold: isHeader, size: isHeader ? 24 : 20, font: "맑은 고딕" })],
@@ -194,19 +202,22 @@ function downloadWordDoc(content, title, baseInfo) {
     // 서명란
     children.push(new Paragraph({ spacing: { before: 400 } }));
     children.push(new Table({
-      width: { size: 9026, type: WidthType.DXA },
-      columnWidths: [3009, 3008, 3009],
+      width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
-        new TableRow({ children: [
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "작성자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 3008, type: WidthType.DXA }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "검토자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-          new TableCell({ borders, margins: cellMargins, shading: { fill: "D5E8F0", type: ShadingType.CLEAR }, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "승인자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 3008, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
-          new TableCell({ borders, margins: cellMargins, width: { size: 3009, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
-        ]}),
+        new TableRow({
+          children: [
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "작성자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "검토자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+            new TableCell({ margins: cellMargins, shading: { fill: "D5E8F0" }, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "승인자", bold: true, size: 20, font: "맑은 고딕" })] })] }),
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ margins: cellMargins, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
+            new TableCell({ margins: cellMargins, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
+            new TableCell({ margins: cellMargins, borders: { top: borderSetting, bottom: borderSetting, left: borderSetting, right: borderSetting }, children: [new Paragraph({ children: [new TextRun({ text: " ", size: 40 })] })] }),
+          ]
+        }),
       ],
     }));
 
@@ -229,12 +240,18 @@ function downloadWordDoc(content, title, baseInfo) {
       }],
     });
 
+    const safeCompany = (baseInfo.company || "사업장").replace(/[\s\.]/g, "_");
+    const safeTitle = title.replace(/[\s\.]/g, "_");
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
     Packer.toBlob(doc).then(blob => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `위험성평가_${title}_${baseInfo.company || "사업장"}_${new Date().toLocaleDateString("ko-KR").replace(/\. /g, "").replace(".", "")}.docx`;
+      a.download = `위험성평가_${safeTitle}_${safeCompany}_${dateStr}.docx`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     });
   } catch (e) {
@@ -242,6 +259,7 @@ function downloadWordDoc(content, title, baseInfo) {
   }
 }
 
+// 🏢 메인 App 컴포넌트 선언 시작
 export default function App() {
   const [baseInfo, setBaseInfo] = useState({ company: "", industry: "", workers: "", manager: "" });
   const [baseConfirmed, setBaseConfirmed] = useState(false);
@@ -398,7 +416,7 @@ export default function App() {
     ) : null
   );
 
-  // 템플릿 선택 화면
+  // 1️⃣ 템플릿 선택 화면
   if (screen === "home" && !selectedTemplate) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -435,7 +453,7 @@ export default function App() {
     );
   }
 
-  // 메인 홈 (양식 선택 후)
+  // 2️⃣ 메인 대시보드 화면
   if (screen === "home" && selectedTemplate) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -488,7 +506,7 @@ export default function App() {
               <button onClick={() => {
                 const allText = STEPS.filter(s => results[s.id]).map(s => `=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
                 downloadWordDoc(allText, "위험성평가 전체", baseInfo);
-              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifycontent: "center", gap: 8 }}>
+              }} style={{ width: "100%", padding: "13px", marginBottom: 12, background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <span style={{ fontSize: 18 }}>📄</span> 전체 워드 문서 다운로드 ({completedSteps.length}/6 완료)
               </button>
             )}
@@ -587,7 +605,7 @@ export default function App() {
     );
   }
 
-  // 각 스텝 폼 화면
+  // 3️⃣ 각 스텝 입력 폼 화면
   if (screen === "step-form" && activeStep) {
     const isStep1 = activeStep.id === 1;
     const isStep2 = activeStep.multiSheet === true;
@@ -693,7 +711,7 @@ export default function App() {
                   <button onClick={() => setShowScenario(true)} style={{ width: "100%", padding: "9px", marginBottom: 12, background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 9, color: C.amber, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🏭 업종별 시나리오로 자동완성</button>
                 )}
                 {activeStep.uniqueFields && activeStep.uniqueFields.map(f => (
-                  <div key={f.key} style={{ marginBottom: 10 }}>
+                  <div key={f.key} style={{ Stadium: "10px", marginBottom: 10 }}>
                     <label style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 }}>
                       {f.label} {stepData[f.key] && <span style={{ color: C.green, fontSize: 11, marginLeft: 6 }}>자동완성</span>}
                     </label>
@@ -730,7 +748,7 @@ export default function App() {
     );
   }
 
-  // 교육 자료 폼 화면
+  // 4️⃣ 교육 자료 폼 화면
   if (screen === "edu-form" && activeStep) {
     return (
       <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -755,7 +773,7 @@ export default function App() {
     );
   }
 
-  // 최종 문서 결과 화면
+  // 5️⃣ 최종 문서 결과 화면
   if (screen === "step-result" && activeStep) {
     const stepIdx = STEPS.findIndex(s => s.id === activeStep.id);
     const nextStep = stepIdx !== -1 && stepIdx + 1 < STEPS.length ? STEPS[stepIdx + 1] : null;
