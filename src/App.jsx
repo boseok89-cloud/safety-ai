@@ -130,7 +130,6 @@ function downloadWordDoc(content, title, baseInfo) {
   try {
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType } = window.docx;
     
-    // 1. 안전하고 표준화된 테두리 및 여백 설정
     const borderSetting = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
     const cellMargins = { top: 80, bottom: 80, left: 120, right: 120 };
     const children = [];
@@ -148,9 +147,9 @@ function downloadWordDoc(content, title, baseInfo) {
       spacing: { before: 200, after: 100 },
     }));
 
-    // 2. 오류 수정: 기본정보 표 (Table, Row, Cell 구조 표준화)
+    // 기본정보 표
     children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE }, // 비율 기반으로 안정화
+      width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
         new TableRow({
           children: [
@@ -190,7 +189,10 @@ function downloadWordDoc(content, title, baseInfo) {
         return;
       }
       const isHeader = line.startsWith("#") || (line.match(/^\d+\./) && line.length < 50);
-      const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\裝/g, "");
+      
+      // ✨ 오타 수정 완료: 마크다운 ** 기호를 지워주는 정규식 안정화
+      const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\*/g, ""); 
+      
       children.push(new Paragraph({
         heading: isHeader ? HeadingLevel.HEADING_2 : undefined,
         children: [new TextRun({ text: cleanLine, bold: isHeader, size: isHeader ? 24 : 20, font: "맑은 고딕" })],
@@ -198,10 +200,8 @@ function downloadWordDoc(content, title, baseInfo) {
       }));
     });
 
-    // 서명란 추가
+    // 서명란
     children.push(new Paragraph({ spacing: { before: 400 } }));
-    
-    // 3. 오류 수정: 서명란 표 구조 표준화
     children.push(new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
@@ -240,6 +240,25 @@ function downloadWordDoc(content, title, baseInfo) {
         children,
       }],
     });
+
+    const safeCompany = (baseInfo.company || "사업장").replace(/[\s\.]/g, "_");
+    const safeTitle = title.replace(/[\s\.]/g, "_");
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+    Packer.toBlob(doc).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `위험성평가_${safeTitle}_${safeCompany}_${dateStr}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  } catch (e) {
+    alert("워드 문서 생성 중 오류가 발생했습니다: " + e.message);
+  }
+}
 
     // 4. 안전한 파일명 정제 (공백 및 마침표 제거)
     const safeCompany = (baseInfo.company || "사업장").replace(/[\s\.]/g, "_");
