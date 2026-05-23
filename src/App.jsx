@@ -102,7 +102,7 @@ function ResultViewer({ text, color }) {
     const isHeader = line.startsWith("#") || (line.match(/^[■□▶◆●\d]+[\.\s]/) && line.length < 60 && line.trim().length > 2);
     if (isHeader) {
       if (current) sections.push(current);
-      current = { title: line.replace(/^#+\s*/, "").replace(/\*\*/g,"").trim(), lines: [] };
+      current = { title: line.replace(/^#+\s*/, "").replace(/\*\设/g,"").trim(), lines: [] };
     } else if (current) {
       current.lines.push(line);
     } else {
@@ -493,7 +493,7 @@ export default function App() {
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
                   {sheets.map((s,i)=>(
                     <div key={s.id} style={{display:"flex",alignItems:"center",gap:2}}>
-                      <button onClick={()=>setActiveSheetId(s.id)} style={{padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",background:activeSheetId===s.id?stepColor:"#e2e8f0",color:activeSheetId===s.id?"#fff":C.slate,fontSize:12,fontWeight:700}}>
+                      <button onClick={()=>setActiveSheetId(s.id)} style={{padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",background:activeSheetId===s.id?stepColor:"#fff",color:activeSheetId===s.id?"#fff":C.slate,fontSize:12,fontWeight:700}}>
                         {s.result?"✅ ":""}{s.workArea?s.workArea.slice(0,8)+(s.workArea.length>8?"..":""):`공정 ${i+1}`}
                       </button>
                       {sheets.length>1&&<button onClick={()=>removeSheet(s.id)} style={{background:"none",border:"none",color:"#94a3b8",fontSize:14,cursor:"pointer",padding:"0 2px"}}>×</button>}
