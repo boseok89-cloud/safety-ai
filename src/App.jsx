@@ -301,7 +301,7 @@ export default function App() {
   const [linkedSirenCases, setLinkedSirenCases] = useState([]);
   const [globalCopied, setGlobalCopied] = useState(false);
   const [sirenCopied, setSirenCopied] = useState(null);
-  const [sheets, setSheets] = useState([{ id:1, workArea:"", workType:"", equipment:"", materials:"", envFactors:"", currentSafety:"", result:"" }]);
+  const [sheets, setSheets] = useState([{ id:1, workArea:"", workType:"", equipment:"", materials:"", envFactors:"", currentSafety:"", result:"", extraHazards:[] }]);
   const [activeSheetId, setActiveSheetId] = useState(1);
   const [sheetLoading, setSheetLoading] = useState({});
 
@@ -348,7 +348,18 @@ export default function App() {
     setShowScenario(false);
   };
 
-  const addSheet = () => { const newId = Math.max(...sheets.map(s=>s.id))+1; setSheets(prev=>[...prev,{id:newId,workArea:"",workType:"",equipment:"",materials:"",envFactors:"",currentSafety:"",result:""}]); setActiveSheetId(newId); };
+  const addSheet = () => { const newId = Math.max(...sheets.map(s=>s.id))+1; setSheets(prev=>[...prev,{id:newId,workArea:"",workType:"",equipment:"",materials:"",envFactors:"",currentSafety:"",result:"",extraHazards:[]}]); setActiveSheetId(newId); };
+
+  // 추가 위험요인 관련 헬퍼
+  const addExtraHazard = (sheetId) => {
+    setSheets(prev=>prev.map(s=>s.id===sheetId?{...s,extraHazards:[...(s.extraHazards||[]),{id:Date.now(),situation:"",cause:"",prevention:""}]}:s));
+  };
+  const updateExtraHazard = (sheetId, hazardId, field, value) => {
+    setSheets(prev=>prev.map(s=>s.id===sheetId?{...s,extraHazards:(s.extraHazards||[]).map(h=>h.id===hazardId?{...h,[field]:value}:h)}:s));
+  };
+  const removeExtraHazard = (sheetId, hazardId) => {
+    setSheets(prev=>prev.map(s=>s.id===sheetId?{...s,extraHazards:(s.extraHazards||[]).filter(h=>h.id!==hazardId)}:s));
+  };
   const removeSheet = (id) => { if(sheets.length<=1) return; const r=sheets.filter(s=>s.id!==id); setSheets(r); if(activeSheetId===id) setActiveSheetId(r[0].id); };
   const updateSheet = (id,field,value) => setSheets(prev=>prev.map(s=>s.id===id?{...s,[field]:value}:s));
 
@@ -366,7 +377,14 @@ export default function App() {
     finally { setSheetLoading(prev=>({...prev,[sheet.id]:false})); }
   };
 
-  const getAllSheetsResult = () => sheets.filter(s=>s.result).map((s,i)=>`[공정 ${i+1}: ${s.workArea||"미입력"}]\n${s.result}`).join("\n\n");
+  const getAllSheetsResult = () => sheets.filter(s=>s.result||((s.extraHazards||[]).length>0)).map((s,i)=>{
+    let text = `[공정 ${i+1}: ${s.workArea||"미입력"}]`;
+    if (s.result) text += `\n${s.result}`;
+    if ((s.extraHazards||[]).length>0) {
+      text += `\n\n【현장 추가 위험요인】\n` + s.extraHazards.map((h,j)=>`추가 ${j+1}. ${h.situation||"(상황 미입력)"}\n  원인: ${h.cause||"-"}\n  대책: ${h.prevention||"-"}`).join("\n");
+    }
+    return text;
+  }).join("\n\n");
 
   const getSirenCases = () => {
     if (sirenIndustry) return INDUSTRY_SCENARIOS[sirenIndustry]?.accidentCases||[];
@@ -669,10 +687,60 @@ export default function App() {
                     <pre style={{whiteSpace:"pre-wrap",wordBreak:"break-word",fontSize:12,lineHeight:1.7,color:"#374151",margin:0,fontFamily:"'Noto Sans KR',sans-serif",maxHeight:200,overflow:"auto"}}>{activeSheet.result}</pre>
                   </div>
                 )}
+
+                {/* ── 추가 위험요인 입력 섹션 ── */}
+                <div style={{marginTop:14,borderTop:"1.5px dashed #e2e8f0",paddingTop:14}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:700,color:C.navy}}>✏️ 추가 위험요인 직접 입력</div>
+                      <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>AI가 놓친 현장 특이 위험요인을 직접 추가하세요</div>
+                    </div>
+                    <button onClick={()=>addExtraHazard(activeSheetId)} style={{padding:"6px 12px",background:`linear-gradient(135deg,${C.amber},${C.amber}cc)`,border:"none",borderRadius:9,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+                      + 위험요인 추가
+                    </button>
+                  </div>
+
+                  {(activeSheet.extraHazards||[]).length===0&&(
+                    <div style={{textAlign:"center",padding:"16px 0",background:"rgba(245,158,11,0.04)",border:`1.5px dashed ${C.amber}30`,borderRadius:10}}>
+                      <div style={{fontSize:20,marginBottom:4}}>➕</div>
+                      <div style={{fontSize:12,color:"#94a3b8"}}>위 버튼으로 현장 위험요인을 추가하세요</div>
+                    </div>
+                  )}
+
+                  {(activeSheet.extraHazards||[]).map((h,idx)=>(
+                    <div key={h.id} style={{background:"rgba(245,158,11,0.04)",border:`1.5px solid ${C.amber}30`,borderRadius:11,padding:"12px",marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                        <span style={{fontSize:12,fontWeight:700,color:C.amber}}>추가 위험요인 {idx+1}</span>
+                        <button onClick={()=>removeExtraHazard(activeSheetId,h.id)} style={{background:"none",border:"none",color:"#94a3b8",fontSize:16,cursor:"pointer",padding:"0 4px",lineHeight:1}}>×</button>
+                      </div>
+                      {[
+                        {field:"situation",label:"작업상황 / 위험요인",placeholder:"예: 야간 단독 전기작업 중 감전 위험"},
+                        {field:"cause",label:"원인",placeholder:"예: 잔류전압 미확인, 절연장갑 미착용"},
+                        {field:"prevention",label:"개선 대책",placeholder:"예: 작업 전 전원 차단 확인, 절연 보호구 착용"},
+                      ].map(row=>(
+                        <div key={row.field} style={{marginBottom:8}}>
+                          <label style={{fontSize:11,fontWeight:700,color:"#374151",display:"block",marginBottom:3}}>{row.label}</label>
+                          <input
+                            value={h[row.field]||""}
+                            onChange={e=>updateExtraHazard(activeSheetId,h.id,row.field,e.target.value)}
+                            placeholder={row.placeholder}
+                            style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1.5px solid ${C.amber}25`,fontSize:12,color:C.navy,outline:"none",background:"#fff",boxSizing:"border-box"}}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                  {(activeSheet.extraHazards||[]).length>0&&(
+                    <div style={{fontSize:11,color:C.amber,fontWeight:600,textAlign:"center",marginTop:2}}>
+                      {(activeSheet.extraHazards||[]).length}개 추가됨 · 다음 단계에 자동 포함됩니다
+                    </div>
+                  )}
+                </div>
               </div>
               <div style={{background:`${C.accent}0a`,border:`1px solid ${C.accent}25`,borderRadius:12,padding:"11px 14px",marginBottom:12}}>
-                <div style={{fontSize:12,fontWeight:700,color:C.accent}}>{sheets.filter(s=>s.result).length}/{sheets.length} 공정 완료</div>
-                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>모든 공정 파악 후 다음 단계로 진행하세요</div>
+                <div style={{fontSize:12,fontWeight:700,color:C.accent}}>{sheets.filter(s=>s.result||(s.extraHazards||[]).length>0).length}/{sheets.length} 공정 완료</div>
+                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>AI 파악 또는 직접 입력 중 하나라도 완료되면 다음 단계로 진행 가능</div>
               </div>
               <button onClick={()=>{ const r=getAllSheetsResult(); if(!r){alert("최소 1개 공정의 위험요인을 먼저 파악해주세요!");return;} setResult(r);setResults(prev=>({...prev,[2]:r}));setCompletedSteps(prev=>prev.includes(2)?prev:[...prev,2]);setScreen("step-result"); }} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
                 📋 전체 결과 확인 및 다음 단계로
