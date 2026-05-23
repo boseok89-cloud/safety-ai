@@ -88,17 +88,16 @@ const C = { navy: "#0f2640", blue: "#1a3a5c", accent: "#0ea5e9", green: "#22c55e
 async function saveStorage(key, val) { try { await window.storage.set(key, JSON.stringify(val)); } catch {} }
 async function loadStorage(key) { try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; } }
 
-// 복사 유틸
 function copyText(text, setCopied, key) {
   navigator.clipboard.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800); });
 }
 
-// 결과 텍스트를 섹션으로 분리해서 보여주는 컴포넌트
 function ResultViewer({ text, color }) {
   const [copied, setCopied] = useState(null);
   const lines = text.split("\n");
   const sections = [];
   let current = null;
+  
   lines.forEach(line => {
     const isHeader = line.startsWith("#") || (line.match(/^[■□▶◆●\d]+[\.\s]/) && line.length < 60 && line.trim().length > 2);
     if (isHeader) {
@@ -122,7 +121,7 @@ function ResultViewer({ text, color }) {
         return (
           <div key={i} style={{ marginBottom: 12, borderRadius: 10, border: `1px solid ${color}20`, overflow: "hidden" }}>
             {sec.title && (
-              <div style={{ background: `${color}12`, borderBottom: `1px solid ${color}20`, padding: "9px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ background: `${color}12`, borderBottom: `1px solid ${color}20`, padding: "9px 14px", display: "flex", alignItems: "center", justifyBetween: "space-between" }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: color }}>{sec.title}</span>
                 <button onClick={() => copyText(secText, setCopied, i)} style={{ background: isCopied ? `${C.green}20` : `${color}15`, border: `1px solid ${isCopied ? C.green : color}30`, borderRadius: 6, padding: "3px 9px", color: isCopied ? C.green : color, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{isCopied ? "✓ 복사됨" : "복사"}</button>
               </div>
@@ -149,7 +148,10 @@ export default function App() {
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [history, setHistory] = useState([]);
+  
+  // 브라우저 window.history 스코프 충돌을 피하기 위해 이름을 evalHistory로 변경
+  const [evalHistory, setEvalHistory] = useState([]);
+  
   const [showScenario, setShowScenario] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sirenIndustry, setSirenIndustry] = useState(null);
@@ -161,11 +163,12 @@ export default function App() {
   const [sheetLoading, setSheetLoading] = useState({});
 
   useEffect(() => {
-    (async () => {
+    async function initStorageData() {
       const p = await loadStorage("company-profile"); if (p) { setBaseInfo(p); setBaseConfirmed(true); }
-      const h = await loadStorage("eval-history"); if (h) setHistory(h);
+      const h = await loadStorage("eval-history"); if (h) setEvalHistory(h);
       const t = await loadStorage("selected-template"); if (t) setSelectedTemplate(t);
-    })();
+    }
+    initStorageData();
   }, []);
 
   useEffect(() => {
@@ -187,7 +190,7 @@ export default function App() {
       setResult(text);
       if (activeStep?.id) setResults(prev => ({ ...prev, [activeStep.id]: text }));
       const entry = { id:Date.now(), step:activeStep?.title, company:baseInfo.company||"미입력", date:new Date().toLocaleDateString("ko-KR"), preview:text.slice(0,60)+"...", full:text };
-      const newH = [entry,...history].slice(0,20); setHistory(newH); await saveStorage("eval-history", newH);
+      const newH = [entry,...evalHistory].slice(0,20); setEvalHistory(newH); await saveStorage("eval-history", newH);
     } catch { setResult("오류가 발생했습니다. 다시 시도해주세요."); }
     finally { setLoading(false); }
   };
@@ -210,12 +213,12 @@ export default function App() {
     setSheetLoading(prev=>({...prev,[sheet.id]:true}));
     const info = Object.entries({...baseInfo,...sheet}).map(([k,v])=>`${k}: ${v||"미입력"}`).join("\n");
     try {
-      const res = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:STEPS[1].prompt, messages:[{role:"user",content:`다음 공정의 위험요인을 파악해주세요:\n\n${info}`}] }) });
+      const res = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:STEPS[1].prompt, messages:[{role:"user",content:`다음공정의 위험요인을 파악해주세요:\n\n${info}`}] }) });
       const d = await res.json();
       const text = d.content?.map(b=>b.text||"").join("")||"오류가 발생했습니다.";
       setSheets(prev=>prev.map(s=>s.id===sheet.id?{...s,result:text}:s));
       const entry={id:Date.now(),step:`유해위험요인파악 - ${sheet.workArea||"공정"+sheet.id}`,company:baseInfo.company||"미입력",date:new Date().toLocaleDateString("ko-KR"),preview:text.slice(0,60)+"...",full:text};
-      const newH=[entry,...history].slice(0,20); setHistory(newH); await saveStorage("eval-history",newH);
+      const newH=[entry,...evalHistory].slice(0,20); setEvalHistory(newH); await saveStorage("eval-history",newH);
     } catch { setSheets(prev=>prev.map(s=>s.id===sheet.id?{...s,result:"오류가 발생했습니다."}:s)); }
     finally { setSheetLoading(prev=>({...prev,[sheet.id]:false})); }
   };
@@ -239,13 +242,12 @@ export default function App() {
   );
 
   const BaseInfoBanner = () => baseConfirmed && baseInfo.company ? (
-    <div style={{ background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", borderRadius:11, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+    <div style={{ background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", borderRadius:11, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyBetween: "space-between" }}>
       <div><div style={{fontSize:12,fontWeight:700,color:"#166534"}}>공통정보 자동 적용 중</div><div style={{fontSize:12,color:"#4b7c5e",marginTop:2}}>{baseInfo.company} · {baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div></div>
       <button onClick={()=>setShowProfileModal(true)} style={{background:"none",border:"1px solid rgba(34,197,94,0.4)",borderRadius:7,padding:"4px 10px",color:"#166534",fontSize:11,fontWeight:700,cursor:"pointer"}}>수정</button>
     </div>
   ) : null;
 
-  // ── 템플릿 선택 ──
   if (screen==="home" && !selectedTemplate) {
     return (
       <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif"}}>
@@ -278,7 +280,6 @@ export default function App() {
     );
   }
 
-  // ── 메인 대시보드 ──
   if (screen==="home" && selectedTemplate) {
     const sirenCases = getSirenCases();
     return (
@@ -309,14 +310,13 @@ export default function App() {
         <div style={{maxWidth:560,margin:"0 auto",padding:"12px 14px 0"}}>
           <div style={{display:"flex",background:"#e2e8f0",borderRadius:11,padding:3,gap:3}}>
             {[{k:"assessment",l:"📋 위험성평가"},{k:"siren",l:"🚨 중대재해 사이렌"},{k:"history",l:"📜 이력"}].map(t=>(
-              <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:tab===t.k?(t.k==="siren"?C.siren:"#fff"):"transparent",color:tab===t.k?(t.k==="siren"?"#fff":C.navy):C.slate,fontSize:12,fontWeight:700,cursor:"pointer"}}>{t.l}</button>
+              <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:tab===t.k?(t.k==="siren"?C.siren:"#fff"):"transparent",color:tab===t.k?(t.k==="siren"?"#fff":C.navy):C.slate,fontSize:12,fontWeight:700,cursor:"pointer embezzlement"}}>{t.l}</button>
             ))}
           </div>
         </div>
 
         {tab==="assessment" && (
           <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 28px"}}>
-            {/* 전체 복사 버튼 */}
             {completedSteps.length > 0 && (() => {
               const allText = STEPS.filter(s=>results[s.id]).map(s=>`=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
               return (
@@ -329,7 +329,7 @@ export default function App() {
               <div style={{background:"linear-gradient(135deg,rgba(220,38,38,0.08),rgba(220,38,38,0.03))",border:"2px solid rgba(220,38,38,0.25)",borderRadius:13,padding:"12px 14px",marginBottom:12}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <span style={{fontSize:18}}>🚨</span>
-                  <div><div style={{fontSize:13,fontWeight:800,color:C.siren}}>중대재해 사이렌 연계</div><div style={{fontSize:11,color:"#7f1d1d"}}>위험성평가 완료! 동종 업종 실제 사고사례를 현장에 공유하세요</div></div>
+                  <div><div style={{fontSize:13,fontWeight:800,color:C.siren}} { /* eslint-disable-line */ }>중대재해 사이렌 연계</div><div style={{fontSize:11,color:"#7f1d1d"}}>위험성평가 완료! 동종 업종 실제 사고사례를 현장에 공유하세요</div></div>
                 </div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {linkedSirenCases.map((c,i)=><button key={i} onClick={()=>setTab("siren")} style={{padding:"5px 10px",background:"rgba(220,38,38,0.1)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:8,color:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>{c.keyword}</button>)}
@@ -340,7 +340,7 @@ export default function App() {
               {STEPS.map((s,i)=>{
                 const done=completedSteps.includes(i+1);
                 return (
-                  <button key={s.id} onClick={()=>{setActiveStep(s);setStepData({});setResult(results[s.id]||"");setScreen("step-form");}} style={{background:"#fff",border:`2px solid ${done?C.green:"#e2e8f0"}`,borderRadius:13,padding:"13px 15px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+                  <button key={s.id} onClick={()=>{setActiveStep(s);setStepData({});setResult(results[s.id]||"");setScreen("step-form");}} style={{width:"100%",background:"#fff",border:`2px solid ${done?C.green:"#e2e8f0"}`,borderRadius:13,padding:"13px 15px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
                     <div style={{width:40,height:40,borderRadius:10,flexShrink:0,background:done?`${C.green}18`:`${s.color}12`,border:`2px solid ${done?C.green:s.color}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19}}>{done?"✅":s.icon}</div>
                     <div style={{flex:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
@@ -407,15 +407,15 @@ export default function App() {
 
         {tab==="history" && (
           <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 28px"}}>
-            {history.length===0 ? (
+            {evalHistory.length===0 ? (
               <div style={{textAlign:"center",padding:"50px 0",color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:12}}>📜</div><div style={{fontWeight:700}}>아직 작성된 문서가 없어요</div></div>
             ) : (
               <div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                  <div style={{fontSize:12,color:C.slate,fontWeight:600}}>최근 {history.length}건</div>
-                  <button onClick={async()=>{setHistory([]);await saveStorage("eval-history",[]);}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>전체삭제</button>
+                  <div style={{fontSize:12,color:C.slate,fontWeight:600}}>최근 {evalHistory.length}건</div>
+                  <button onClick={async()=>{setEvalHistory([]);await saveStorage("eval-history",[]);}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>전체삭제</button>
                 </div>
-                {history.map(h=>(
+                {evalHistory.map(h=>(
                   <div key={h.id} style={{background:"#fff",borderRadius:12,padding:"14px",marginBottom:8}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                       <div><div style={{fontSize:13,fontWeight:700,color:C.navy}}>{h.step}</div><div style={{fontSize:11,color:"#94a3b8"}}>{h.company} · {h.date}</div></div>
@@ -448,7 +448,6 @@ export default function App() {
     );
   }
 
-  // ── STEP 폼 ──
   if (screen==="step-form" && activeStep) {
     const isStep1=activeStep.id===1, isStep2=activeStep.multiSheet===true;
     const stepColor=activeStep.color;
@@ -566,7 +565,6 @@ export default function App() {
     );
   }
 
-  // ── 결과 화면 ──
   if (screen==="step-result" && activeStep) {
     const stepIdx=STEPS.findIndex(s=>s.id===activeStep.id);
     const nextStep=stepIdx!==-1&&stepIdx+1<STEPS.length?STEPS[stepIdx+1]:null;
@@ -607,12 +605,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 전체 복사 버튼 */}
               <button onClick={()=>{navigator.clipboard.writeText(result).then(()=>{setLocalCopied(true);setTimeout(()=>setLocalCopied(false),2000);});}} style={{width:"100%",padding:"13px",marginBottom:12,background:localCopied?"linear-gradient(135deg,#166534,#15803d)":`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 <span style={{fontSize:18}}>{localCopied?"✅":"📋"}</span> {localCopied?"복사 완료! 붙여넣기 해서 사용하세요":"전체 내용 복사"}
               </button>
 
-              {/* 연계 사이렌 배너 */}
               {relatedCases.length>0&&(
                 <div style={{background:"linear-gradient(135deg,rgba(220,38,38,0.07),rgba(220,38,38,0.03))",border:"2px solid rgba(220,38,38,0.2)",borderRadius:13,padding:"12px 14px",marginBottom:12}}>
                   <div style={{fontSize:12,fontWeight:800,color:C.siren,marginBottom:6}}>🚨 동종 업종 중대재해 사례 — 지금 현장에 공유하세요!</div>
@@ -625,7 +621,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 섹션별 결과 뷰어 */}
               <div style={{background:"#fff",borderRadius:16,overflow:"hidden",marginBottom:12}}>
                 <div style={{background:`linear-gradient(135deg,${C.navy},${C.blue})`,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
