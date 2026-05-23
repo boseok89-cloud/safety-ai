@@ -75,34 +75,72 @@ const BASE_FIELDS = [
 ];
 
 const STEPS = [
-  { id: 1, icon: "📁", title: "사전준비", subtitle: "평가팀 구성 및 기준 설정", color: "#0ea5e9", uniqueFields: [ { key: "evalType", label: "평가종류", placeholder: "예: 최초평가 / 정기평가 / 수시평가" }, { key: "evalDate", label: "평가일자", placeholder: "예: 2026-05-06" }, { key: "evalTeam", label: "평가팀 구성", placeholder: "예: 안전관리자, 관리감독자, 근로자 대표" }, { key: "riskMatrix", label: "위험성 판단 기준", placeholder: "예: 가능성(상/중/하) × 중대성(상/중/하) 9칸 매트릭스" } ], prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 사전준비 단계 문서 작성. 포함: 사업장 기본정보, 법적근거(산업안전보건법 제36조), 평가팀 구성 및 역할, 가능성×중대성 위험성 판단 기준 매트릭스(3×3), 수집자료 목록(재해사례/아차사고/공정정보), 평가일정. 전문적으로 한국어로." },
-  { id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "공정별 위험 시나리오 도출", color: "#f59e0b", uniqueFields: [], multiSheet: true, prompt: "고용노동부 고시 제2024-76호 기준 유해·위험요인 파악 단계 문서 작성. 포함: 공정/작업 개요, 기인물별 위험 시나리오 목록표(6개 이상) - 각 시나리오는 [작업상황 → 기인물 → 위험요인 → 예상 재해유형] 형식, 유형별 분류(기계적/화학적/물리적/인간공학적/작업환경적), 작업장 환경요인(온도·소음·조명·환기·공간 등) 별도 분석표, 현재 안전조치 현황. 전문적으로 한국어로.", hasScenario: true },
-  { id: 3, icon: "⚖️", title: "위험성 결정", subtitle: "시나리오별 가능성 × 중대성 평가", color: "#ef4444", uniqueFields: [ { key: "hazards", label: "STEP2에서 도출된 주요 위험 시나리오", placeholder: "업종 시나리오 선택 또는 STEP2 결과 입력" }, { key: "method", label: "위험성 추정 방법", placeholder: "예: 빈도·강도법(가능성×중대성)" }, { key: "acceptableCriteria", label: "허용 가능 위험성 기준", placeholder: "예: 위험성 합계 4이상=허용불가, 3=조건부, 2이하=허용" } ], prompt: "고용노동부 고시 제2024-76호 기준 위험성 결정 단계 문서 작성. 핵심: 각 위험 시나리오별로 (1)가능성(상3/중2/하1) (2)중대성(상3/중2/하1) (3)위험성=가능성×중대성 (4)허용여부를 결정하는 표 작성. 포함: 위험성 결정 매트릭스표, 시나리오별 상세 결정 근거, 허용불가 위험성 목록, 중대성 판단기준(사망/중상/경상). 전문적으로 한국어로.", hasScenario: true },
-  { id: 4, icon: "🛡️", title: "감소대책 수립·실행", subtitle: "위험성 제거 및 저감 조치", color: "#22c55e", uniqueFields: [ { key: "highRisks", label: "허용불가 위험요인", placeholder: "예: 추락(상), 협착(상), 감전(중)" }, { key: "budget", label: "개선 가용예산", placeholder: "예: 약 500만원" }, { key: "deadline", label: "조치 완료기한", placeholder: "예: 2026-06-30" }, { key: "responsible", label: "조치 책임자", placeholder: "예: 현장소장 김○○" } ], prompt: "고용노동부 고시 제2024-76호 기준 위험성 감소대책 수립·실행 단계 문서 작성. 포함: 감소대책 우선순위원칙, 위험요인별 실행계획표, 단기/중장기 조치, 개선전후 위험성 비교, 잔류위험 관리. 실용적으로 한국어로." },
-  { id: 5, icon: "📢", title: "위험성평가 공유", subtitle: "근로자 주지 및 교육", color: "#8b5cf6", uniqueFields: [ { key: "shareMethod", label: "공유 방법", placeholder: "예: 조회시간 교육, 게시판 부착" }, { key: "shareDate", label: "공유 일자", placeholder: "예: 2026-05-10" }, { key: "keyPoints", label: "강조할 핵심 위험요인", placeholder: "예: 추락, 협착, 화재" } ], prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 공유 단계 문서 작성. 포함: 공유목적/법적근거, 핵심위험요인 요약, 현장게시용 안전수칙 5가지, 근로자 의견수렴, 서명란. 한국어로." },
-  { id: 6, icon: "📂", title: "기록 및 보존", subtitle: "3년 보존 의무 문서 완성", color: "#64748b", uniqueFields: [ { key: "evalPeriod", label: "평가 기간", placeholder: "예: 2026-05-01 ~ 2026-05-10" }, { key: "totalHazards", label: "총 위험요인 수", placeholder: "예: 15개" }, { key: "highCount", label: "고위험(상) 건수", placeholder: "예: 3건" }, { key: "midCount", label: "중위험(중) 건수", placeholder: "예: 7건" }, { key: "lowCount", label: "저위험(하) 건수", placeholder: "예: 5건" }, { key: "nextEval", label: "다음 평가 예정일", placeholder: "예: 2027-05-01" } ], prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 기록 및 보존 단계 문서 작성. 포함: 최종결과 요약(통계), 법정보존서류 목록(시행규칙 제37조), 보존방법/기간(3년), 총평, 수시평가 기준, 다음 정기평가 계획, 서명란. 한국어로." },
+  { id: 1, icon: "📁", title: "사전준비", subtitle: "평가팀 구성 및 기준 설정", color: "#0ea5e9",
+    uniqueFields: [
+      { key: "evalType", label: "평가종류", placeholder: "예: 최초평가 / 정기평가 / 수시평가" },
+      { key: "evalDate", label: "평가일자", placeholder: "예: 2026-05-06" },
+      { key: "evalTeam", label: "평가팀 구성", placeholder: "예: 안전관리자, 관리감독자, 근로자 대표" },
+      { key: "riskMatrix", label: "위험성 판단 기준", placeholder: "예: 가능성(상/중/하) × 중대성(상/중/하) 9칸 매트릭스" },
+    ],
+    prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 사전준비 단계 문서 작성. 포함: 사업장 기본정보, 법적근거(산업안전보건법 제36조), 평가팀 구성 및 역할, 가능성×중대성 위험성 판단 기준 매트릭스(3×3), 수집자료 목록, 평가일정. 전문적으로 한국어로." },
+  { id: 2, icon: "🔍", title: "유해·위험요인 파악", subtitle: "공정별 위험 시나리오 도출", color: "#f59e0b",
+    uniqueFields: [], multiSheet: true,
+    prompt: "고용노동부 고시 제2024-76호 기준 유해·위험요인 파악 단계 문서 작성. 포함: 공정/작업 개요, 기인물별 위험 시나리오 목록표(6개 이상) - 각 시나리오는 [작업상황 → 기인물 → 위험요인 → 예상 재해유형] 형식, 유형별 분류(기계적/화학적/물리적/인간공학적/작업환경적), 작업장 환경요인(온도·소음·조명·환기·공간 등) 별도 분석표, 현재 안전조치 현황. 전문적으로 한국어로.",
+    hasScenario: true },
+  { id: 3, icon: "⚖️", title: "위험성 결정", subtitle: "시나리오별 가능성 × 중대성 평가", color: "#ef4444",
+    uniqueFields: [
+      { key: "hazards", label: "STEP2에서 도출된 주요 위험 시나리오", placeholder: "업종 시나리오 선택 또는 STEP2 결과 입력" },
+      { key: "method", label: "위험성 추정 방법", placeholder: "예: 빈도·강도법(가능성×중대성)" },
+      { key: "acceptableCriteria", label: "허용 가능 위험성 기준", placeholder: "예: 위험성 합계 4이상=허용불가, 3=조건부, 2이하=허용" },
+    ],
+    prompt: "고용노동부 고시 제2024-76호 기준 위험성 결정 단계 문서 작성. 핵심: 각 위험 시나리오별로 (1)가능성(상3/중2/하1) (2)중대성(상3/중2/하1) (3)위험성=가능성×중대성 (4)허용여부를 결정하는 표 작성. 포함: 위험성 결정 매트릭스표, 시나리오별 상세 결정 근거, 허용불가 위험성 목록, 중대성 판단기준(사망/중상/경상). 전문적으로 한국어로.",
+    hasScenario: true },
+  { id: 4, icon: "🛡️", title: "감소대책 수립·실행", subtitle: "위험성 제거 및 저감 조치", color: "#22c55e",
+    uniqueFields: [
+      { key: "highRisks", label: "허용불가 위험요인", placeholder: "예: 추락(상), 협착(상), 감전(중)" },
+      { key: "budget", label: "개선 가용예산", placeholder: "예: 약 500만원" },
+      { key: "deadline", label: "조치 완료기한", placeholder: "예: 2026-06-30" },
+      { key: "responsible", label: "조치 책임자", placeholder: "예: 현장소장 김○○" },
+    ],
+    prompt: "고용노동부 고시 제2024-76호 기준 위험성 감소대책 수립·실행 단계 문서 작성. 포함: 감소대책 우선순위원칙, 위험요인별 실행계획표, 단기/중장기 조치, 개선전후 위험성 비교, 잔류위험 관리. 실용적으로 한국어로." },
+  { id: 5, icon: "📢", title: "위험성평가 공유", subtitle: "근로자 주지 및 교육", color: "#8b5cf6",
+    uniqueFields: [
+      { key: "shareMethod", label: "공유 방법", placeholder: "예: 조회시간 교육, 게시판 부착" },
+      { key: "shareDate", label: "공유 일자", placeholder: "예: 2026-05-10" },
+      { key: "keyPoints", label: "강조할 핵심 위험요인", placeholder: "예: 추락, 협착, 화재" },
+    ],
+    prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 공유 단계 문서 작성. 포함: 공유목적/법적근거, 핵심위험요인 요약, 현장게시용 안전수칙 5가지, 근로자 의견수렴, 서명란. 한국어로." },
+  { id: 6, icon: "📂", title: "기록 및 보존", subtitle: "3년 보존 의무 문서 완성", color: "#64748b",
+    uniqueFields: [
+      { key: "evalPeriod", label: "평가 기간", placeholder: "예: 2026-05-01 ~ 2026-05-10" },
+      { key: "totalHazards", label: "총 위험요인 수", placeholder: "예: 15개" },
+      { key: "highCount", label: "고위험(상) 건수", placeholder: "예: 3건" },
+      { key: "midCount", label: "중위험(중) 건수", placeholder: "예: 7건" },
+      { key: "lowCount", label: "저위험(하) 건수", placeholder: "예: 5건" },
+      { key: "nextEval", label: "다음 평가 예정일", placeholder: "예: 2027-05-01" },
+    ],
+    prompt: "고용노동부 고시 제2024-76호 기준 위험성평가 기록 및 보존 단계 문서 작성. 포함: 최종결과 요약(통계), 법정보존서류 목록(시행규칙 제37조), 보존방법/기간(3년), 총평, 수시평가 기준, 다음 정기평가 계획, 서명란. 한국어로." },
 ];
 
-const C = { navy: "#0f2640", blue: "#1a3a5c", accent: "#0ea5e9", green: "#22c55e", amber: "#f59e0b", red: "#ef4444", purple: "#8b5cf6", slate: "#64748b", bg: "#f0f4f8", siren: "#dc2626" };
+const C = { navy:"#0f2640", blue:"#1a3a5c", accent:"#0ea5e9", green:"#22c55e", amber:"#f59e0b", red:"#ef4444", purple:"#8b5cf6", slate:"#64748b", bg:"#f0f4f8", siren:"#dc2626" };
 
 async function saveStorage(key, val) { try { await window.storage.set(key, JSON.stringify(val)); } catch {} }
 async function loadStorage(key) { try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; } }
+const formatSirenText = (c) => `🚨 중대재해 사이렌 — ${c.title}\n\n[업종] ${c.industry} | [일자] ${c.date} | [피해] ${c.severity}\n\n▶ 발생 경위\n${c.situation}\n\n▶ 원인 분석\n${c.cause}\n\n▶ 재발방지 대책\n${c.prevention}\n\n⚠ 지금 당장 현장에 공유하세요!`;
 
-function copyText(text, setCopied, key) {
-  navigator.clipboard.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800); });
-}
-
+// ── ResultViewer: 섹션별 복사 ──
+// useState를 if 블록 바깥 컴포넌트 최상위에서 호출
 function ResultViewer({ text, color }) {
-  const [copied, setCopied] = useState(null);
+  const [copiedIdx, setCopiedIdx] = useState(null);
+
   const lines = text.split("\n");
   const sections = [];
   let current = null;
-  
   lines.forEach(line => {
     const isHeader = line.startsWith("#") || (line.match(/^[■□▶◆●\d]+[\.\s]/) && line.length < 60 && line.trim().length > 2);
     if (isHeader) {
       if (current) sections.push(current);
-      current = { title: line.replace(/^#+\s*/, "").replace(/\*\设/g,"").trim(), lines: [] };
+      current = { title: line.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim(), lines: [] };
     } else if (current) {
       current.lines.push(line);
     } else {
@@ -111,22 +149,29 @@ function ResultViewer({ text, color }) {
     }
   });
   if (current) sections.push(current);
-  if (!sections.length) return <pre style={{ whiteSpace:"pre-wrap", wordBreak:"break-word", fontSize:13, lineHeight:1.8, color:"#1e293b", margin:0, fontFamily:"'Noto Sans KR',sans-serif" }}>{text}</pre>;
+
+  if (!sections.length) {
+    return <pre style={{ whiteSpace:"pre-wrap", wordBreak:"break-word", fontSize:13, lineHeight:1.8, color:"#1e293b", margin:0, fontFamily:"'Noto Sans KR',sans-serif" }}>{text}</pre>;
+  }
 
   return (
     <div>
       {sections.map((sec, i) => {
         const secText = (sec.title ? sec.title + "\n" : "") + sec.lines.join("\n");
-        const isCopied = copied === i;
+        const isCopied = copiedIdx === i;
         return (
-          <div key={i} style={{ marginBottom: 12, borderRadius: 10, border: `1px solid ${color}20`, overflow: "hidden" }}>
+          <div key={i} style={{ marginBottom:12, borderRadius:10, border:`1px solid ${color}20`, overflow:"hidden" }}>
             {sec.title && (
-              <div style={{ background: `${color}12`, borderBottom: `1px solid ${color}20`, padding: "9px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: color }}>{sec.title}</span>
-                <button onClick={() => copyText(secText, setCopied, i)} style={{ background: isCopied ? `${C.green}20` : `${color}15`, border: `1px solid ${isCopied ? C.green : color}30`, borderRadius: 6, padding: "3px 9px", color: isCopied ? C.green : color, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{isCopied ? "✓ 복사됨" : "복사"}</button>
+              <div style={{ background:`${color}12`, borderBottom:`1px solid ${color}20`, padding:"9px 14px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <span style={{ fontSize:13, fontWeight:700, color:color }}>{sec.title}</span>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(secText).then(() => { setCopiedIdx(i); setTimeout(() => setCopiedIdx(null), 1800); }); }}
+                  style={{ background:isCopied?`${C.green}20`:`${color}15`, border:`1px solid ${isCopied?C.green:color}30`, borderRadius:6, padding:"3px 9px", color:isCopied?C.green:color, fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                  {isCopied ? "✓ 복사됨" : "복사"}
+                </button>
               </div>
             )}
-            <div style={{ padding: "12px 14px", background: "#fff" }}>
+            <div style={{ padding:"12px 14px", background:"#fff" }}>
               <pre style={{ whiteSpace:"pre-wrap", wordBreak:"break-word", fontSize:12, lineHeight:1.8, color:"#374151", margin:0, fontFamily:"'Noto Sans KR',sans-serif" }}>{sec.lines.join("\n").trim()}</pre>
             </div>
           </div>
@@ -136,6 +181,107 @@ function ResultViewer({ text, color }) {
   );
 }
 
+// ── StepResultScreen: 결과 화면을 별도 컴포넌트로 분리 (훅 규칙 준수) ──
+function StepResultScreen({ activeStep, result, loading, results, baseInfo, completedSteps, setScreen, setActiveStep, setStepData, setResult, getRelatedCases }) {
+  const [localCopied, setLocalCopied] = useState(false);
+  const [sirenBtnCopied, setSirenBtnCopied] = useState(null);
+
+  const stepIdx = STEPS.findIndex(s => s.id === activeStep.id);
+  const nextStep = stepIdx !== -1 && stepIdx + 1 < STEPS.length ? STEPS[stepIdx + 1] : null;
+  const stepColor = activeStep.color || C.purple;
+  const relatedCases = getRelatedCases();
+
+  const handleCopyAll = () => {
+    navigator.clipboard.writeText(result).then(() => { setLocalCopied(true); setTimeout(() => setLocalCopied(false), 2000); });
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Noto Sans KR',sans-serif" }}>
+      <style>{`*{box-sizing:border-box;}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}`}</style>
+      <div style={{ background:`linear-gradient(135deg,${C.navy},${C.blue})`, padding:"14px 16px", position:"sticky", top:0, zIndex:50 }}>
+        <div style={{ maxWidth:560, margin:"0 auto", display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={() => setScreen("step-form")} style={{ background:"rgba(255,255,255,0.12)", border:"none", borderRadius:8, padding:"6px 11px", color:"#fff", fontSize:13, cursor:"pointer" }}>← 뒤로</button>
+          <div style={{ flex:1, color:"#fff", fontSize:14, fontWeight:700 }}>{activeStep.icon} {activeStep.title} 결과</div>
+          {!loading && result && (
+            <button onClick={handleCopyAll} style={{ background:localCopied?"rgba(34,197,94,0.3)":"rgba(255,255,255,0.15)", border:`1px solid ${localCopied?"rgba(34,197,94,0.5)":"rgba(255,255,255,0.3)"}`, borderRadius:8, padding:"6px 10px", color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+              {localCopied ? "✅ 복사됨" : "📋 전체복사"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ maxWidth:560, margin:"0 auto", padding:"16px 14px 32px" }}>
+        {loading ? (
+          <div style={{ background:"#fff", borderRadius:20, padding:"50px 20px", textAlign:"center" }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>{activeStep.icon}</div>
+            <div style={{ color:C.navy, fontWeight:800, fontSize:15, marginBottom:6 }}>AI가 문서를 작성하고 있어요</div>
+            <div style={{ color:"#94a3b8", fontSize:13, marginBottom:20 }}>고용노동부 기준으로 생성 중...</div>
+            <div style={{ display:"flex", justifyContent:"center", gap:8 }}>
+              {[0,1,2].map(i => <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:stepColor, animation:"pulse 1.2s ease-in-out infinite", animationDelay:`${i*0.4}s` }}/>)}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`, borderRadius:14, padding:"14px 18px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>✅</div>
+              <div>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>{activeStep.title} 문서 생성 완료!</div>
+                <div style={{ color:"rgba(255,255,255,0.7)", fontSize:12, marginTop:2 }}>{baseInfo.company||"사업장"} · {new Date().toLocaleDateString("ko-KR")}</div>
+              </div>
+            </div>
+
+            <button onClick={handleCopyAll} style={{ width:"100%", padding:"13px", marginBottom:12, background:localCopied?"linear-gradient(135deg,#166534,#15803d)":`linear-gradient(135deg,${stepColor},${stepColor}cc)`, border:"none", borderRadius:13, color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+              <span style={{ fontSize:18 }}>{localCopied ? "✅" : "📋"}</span>
+              {localCopied ? "복사 완료! 붙여넣기 해서 사용하세요" : "전체 내용 복사"}
+            </button>
+
+            {relatedCases.length > 0 && (
+              <div style={{ background:"linear-gradient(135deg,rgba(220,38,38,0.07),rgba(220,38,38,0.03))", border:"2px solid rgba(220,38,38,0.2)", borderRadius:13, padding:"12px 14px", marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:C.siren, marginBottom:6 }}>🚨 동종 업종 중대재해 사례 — 지금 현장에 공유하세요!</div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {relatedCases.slice(0, 3).map((c, i) => (
+                    <button key={i} onClick={() => { navigator.clipboard.writeText(formatSirenText(c)).then(() => { setSirenBtnCopied(i); setTimeout(() => setSirenBtnCopied(null), 2000); }); }}
+                      style={{ padding:"6px 11px", background:sirenBtnCopied===i?"rgba(34,197,94,0.15)":"rgba(220,38,38,0.1)", border:`1px solid ${sirenBtnCopied===i?"rgba(34,197,94,0.4)":"rgba(220,38,38,0.25)"}`, borderRadius:8, color:sirenBtnCopied===i?C.green:C.siren, fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                      {sirenBtnCopied === i ? "✅ 복사됨" : `📋 ${c.keyword} 복사`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ background:"#fff", borderRadius:16, overflow:"hidden", marginBottom:12 }}>
+              <div style={{ background:`linear-gradient(135deg,${C.navy},${C.blue})`, padding:"12px 16px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:16 }}>{activeStep.icon}</span>
+                  <div>
+                    <div style={{ color:"#fff", fontWeight:700, fontSize:13 }}>{activeStep.title}</div>
+                    <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11 }}>고용노동부 고시 제2024-76호 기준</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding:"16px" }}>
+                <ResultViewer text={result} color={stepColor} />
+              </div>
+            </div>
+
+            {nextStep && (
+              <button onClick={() => { setActiveStep(nextStep); setStepData({}); setResult(results[nextStep.id]||""); setScreen("step-form"); }}
+                style={{ width:"100%", padding:"14px", marginBottom:8, background:`linear-gradient(135deg,${nextStep.color},${nextStep.color}cc)`, border:"none", borderRadius:13, color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                다음 → STEP {nextStep.id}: {nextStep.title} {nextStep.icon}
+              </button>
+            )}
+            <button onClick={() => setScreen("home")} style={{ width:"100%", padding:"12px", background:"#fff", border:"2px solid #e2e8f0", borderRadius:13, color:C.navy, fontSize:14, fontWeight:700, cursor:"pointer" }}>🏠 홈으로</button>
+            <div style={{ marginTop:10, padding:"11px 14px", background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:10, fontSize:12, color:"#92400e", lineHeight:1.6 }}>
+              ⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 메인 App ──
 export default function App() {
   const [baseInfo, setBaseInfo] = useState({ company:"", industry:"", workers:"", manager:"" });
   const [baseConfirmed, setBaseConfirmed] = useState(false);
@@ -148,9 +294,7 @@ export default function App() {
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
-  
   const [evalHistory, setEvalHistory] = useState([]);
-  
   const [showScenario, setShowScenario] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sirenIndustry, setSirenIndustry] = useState(null);
@@ -162,18 +306,18 @@ export default function App() {
   const [sheetLoading, setSheetLoading] = useState({});
 
   useEffect(() => {
-    async function initStorageData() {
+    async function init() {
       const p = await loadStorage("company-profile"); if (p) { setBaseInfo(p); setBaseConfirmed(true); }
       const h = await loadStorage("eval-history"); if (h) setEvalHistory(h);
       const t = await loadStorage("selected-template"); if (t) setSelectedTemplate(t);
     }
-    initStorageData();
+    init();
   }, []);
 
   useEffect(() => {
     if (completedSteps.length >= 4 && baseInfo.industry) {
-      const matchKey = Object.keys(INDUSTRY_SCENARIOS).find(k => baseInfo.industry.includes(k) || baseInfo.industry.replace("업","") === k.replace("업",""));
-      if (matchKey) setLinkedSirenCases(INDUSTRY_SCENARIOS[matchKey].accidentCases || []);
+      const mk = Object.keys(INDUSTRY_SCENARIOS).find(k => baseInfo.industry.includes(k) || baseInfo.industry.replace("업","") === k.replace("업",""));
+      if (mk) setLinkedSirenCases(INDUSTRY_SCENARIOS[mk].accidentCases || []);
     }
   }, [completedSteps, baseInfo.industry]);
 
@@ -183,13 +327,13 @@ export default function App() {
     setLoading(true); setResult("");
     const info = Object.entries(getAllData()).map(([k,v]) => `${k}: ${v||"미입력"}`).join("\n");
     try {
-      const res = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:prompt, messages:[{ role:"user", content:`다음 정보로 문서를 작성해주세요:\n\n${info}` }] }) });
+      const res = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:prompt, messages:[{ role:"user", content:`다음 정보로 문서를 작성해주세요:\n\n${info}` }] }) });
       const d = await res.json();
       const text = d.content?.map(b => b.text||"").join("") || "오류가 발생했습니다.";
       setResult(text);
       if (activeStep?.id) setResults(prev => ({ ...prev, [activeStep.id]: text }));
       const entry = { id:Date.now(), step:activeStep?.title, company:baseInfo.company||"미입력", date:new Date().toLocaleDateString("ko-KR"), preview:text.slice(0,60)+"...", full:text };
-      const newH = [entry,...evalHistory].slice(0,20); setEvalHistory(newH); await saveStorage("eval-history", newH);
+      const newH = [entry, ...evalHistory].slice(0,20); setEvalHistory(newH); await saveStorage("eval-history", newH);
     } catch { setResult("오류가 발생했습니다. 다시 시도해주세요."); }
     finally { setLoading(false); }
   };
@@ -205,14 +349,14 @@ export default function App() {
   };
 
   const addSheet = () => { const newId = Math.max(...sheets.map(s=>s.id))+1; setSheets(prev=>[...prev,{id:newId,workArea:"",workType:"",equipment:"",materials:"",envFactors:"",currentSafety:"",result:""}]); setActiveSheetId(newId); };
-  const removeSheet = (id) => { if (sheets.length<=1) return; const remaining=sheets.filter(s=>s.id!==id); setSheets(remaining); if(activeSheetId===id) setActiveSheetId(remaining[0].id); };
+  const removeSheet = (id) => { if(sheets.length<=1) return; const r=sheets.filter(s=>s.id!==id); setSheets(r); if(activeSheetId===id) setActiveSheetId(r[0].id); };
   const updateSheet = (id,field,value) => setSheets(prev=>prev.map(s=>s.id===id?{...s,[field]:value}:s));
 
   const callAIForSheet = async (sheet) => {
     setSheetLoading(prev=>({...prev,[sheet.id]:true}));
     const info = Object.entries({...baseInfo,...sheet}).map(([k,v])=>`${k}: ${v||"미입력"}`).join("\n");
     try {
-      const res = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:STEPS[1].prompt, messages:[{role:"user",content:`다음공정의 위험요인을 파악해주세요:\n\n${info}`}] }) });
+      const res = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:STEPS[1].prompt, messages:[{role:"user",content:`다음 공정의 위험요인을 파악해주세요:\n\n${info}`}] }) });
       const d = await res.json();
       const text = d.content?.map(b=>b.text||"").join("")||"오류가 발생했습니다.";
       setSheets(prev=>prev.map(s=>s.id===sheet.id?{...s,result:text}:s));
@@ -223,16 +367,21 @@ export default function App() {
   };
 
   const getAllSheetsResult = () => sheets.filter(s=>s.result).map((s,i)=>`[공정 ${i+1}: ${s.workArea||"미입력"}]\n${s.result}`).join("\n\n");
+
   const getSirenCases = () => {
     if (sirenIndustry) return INDUSTRY_SCENARIOS[sirenIndustry]?.accidentCases||[];
     if (baseInfo.industry) { const mk=Object.keys(INDUSTRY_SCENARIOS).find(k=>baseInfo.industry.includes(k)||baseInfo.industry.replace("업","")===k.replace("업","")); if(mk) return INDUSTRY_SCENARIOS[mk]?.accidentCases||[]; }
     return Object.values(INDUSTRY_SCENARIOS).flatMap(s=>s.accidentCases||[]);
   };
-  const getRelatedCases = () => { if(!baseInfo.industry) return []; const mk=Object.keys(INDUSTRY_SCENARIOS).find(k=>baseInfo.industry.includes(k)||baseInfo.industry.replace("업","")===k.replace("업","")); return mk?(INDUSTRY_SCENARIOS[mk]?.accidentCases||[]):[];};
-  const formatSirenText = (c) => `🚨 중대재해 사이렌 — ${c.title}\n\n[업종] ${c.industry} | [일자] ${c.date} | [피해] ${c.severity}\n\n▶ 발생 경위\n${c.situation}\n\n▶ 원인 분석\n${c.cause}\n\n▶ 재발방지 대책\n${c.prevention}\n\n⚠ 지금 당장 현장에 공유하세요!`;
+
+  const getRelatedCases = () => {
+    if (!baseInfo.industry) return [];
+    const mk=Object.keys(INDUSTRY_SCENARIOS).find(k=>baseInfo.industry.includes(k)||baseInfo.industry.replace("업","")===k.replace("업",""));
+    return mk?(INDUSTRY_SCENARIOS[mk]?.accidentCases||[]):[];
+  };
 
   const Header = ({ title, onBack }) => (
-    <div style={{ background:`linear-gradient(135deg, ${C.navy}, ${C.blue})`, padding:"14px 16px", position:"sticky", top:0, zIndex:50 }}>
+    <div style={{ background:`linear-gradient(135deg,${C.navy},${C.blue})`, padding:"14px 16px", position:"sticky", top:0, zIndex:50 }}>
       <div style={{ maxWidth:560, margin:"0 auto", display:"flex", alignItems:"center", gap:10 }}>
         {onBack && <button onClick={onBack} style={{ background:"rgba(255,255,255,0.12)", border:"none", borderRadius:8, padding:"6px 11px", color:"#fff", fontSize:13, cursor:"pointer" }}>← 뒤로</button>}
         <div style={{ flex:1, color:"#fff", fontSize:15, fontWeight:700 }}>{title}</div>
@@ -241,12 +390,18 @@ export default function App() {
   );
 
   const BaseInfoBanner = () => baseConfirmed && baseInfo.company ? (
-    <div style={{ background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", borderRadius:11, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyContent: "space-between" }}>
+    <div style={{ background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", borderRadius:11, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
       <div><div style={{fontSize:12,fontWeight:700,color:"#166534"}}>공통정보 자동 적용 중</div><div style={{fontSize:12,color:"#4b7c5e",marginTop:2}}>{baseInfo.company} · {baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div></div>
       <button onClick={()=>setShowProfileModal(true)} style={{background:"none",border:"1px solid rgba(34,197,94,0.4)",borderRadius:7,padding:"4px 10px",color:"#166534",fontSize:11,fontWeight:700,cursor:"pointer"}}>수정</button>
     </div>
   ) : null;
 
+  // 결과 화면 — 별도 컴포넌트로 렌더
+  if (screen==="step-result" && activeStep) {
+    return <StepResultScreen activeStep={activeStep} result={result} loading={loading} results={results} baseInfo={baseInfo} completedSteps={completedSteps} setScreen={setScreen} setActiveStep={setActiveStep} setStepData={setStepData} setResult={setResult} getRelatedCases={getRelatedCases} />;
+  }
+
+  // 템플릿 선택
   if (screen==="home" && !selectedTemplate) {
     return (
       <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif"}}>
@@ -260,7 +415,7 @@ export default function App() {
         <div style={{maxWidth:560,margin:"0 auto",padding:"24px 16px"}}>
           <div style={{fontSize:15,fontWeight:800,color:C.navy,marginBottom:6}}>문서 양식을 선택해주세요</div>
           <div style={{fontSize:13,color:C.slate,marginBottom:20}}>업종과 사업장 규모에 맞는 양식을 선택하면 최적화된 문서를 작성해드려요</div>
-          {DOCUMENT_TEMPLATES.map(tmpl => (
+          {DOCUMENT_TEMPLATES.map(tmpl=>(
             <button key={tmpl.id} onClick={async()=>{setSelectedTemplate(tmpl);await saveStorage("selected-template",tmpl);}} style={{width:"100%",background:"#fff",border:`2px solid ${tmpl.color}30`,borderRadius:14,padding:"16px",marginBottom:10,display:"flex",alignItems:"flex-start",gap:14,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
               <div style={{width:48,height:48,borderRadius:12,background:`${tmpl.color}15`,border:`2px solid ${tmpl.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{tmpl.icon}</div>
               <div style={{flex:1}}>
@@ -279,6 +434,7 @@ export default function App() {
     );
   }
 
+  // 메인 대시보드
   if (screen==="home" && selectedTemplate) {
     const sirenCases = getSirenCases();
     return (
@@ -295,7 +451,7 @@ export default function App() {
                 <button onClick={async()=>{setSelectedTemplate(null);await saveStorage("selected-template",null);}} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"6px 9px",color:"#fff",fontSize:11,cursor:"pointer"}}>양식변경</button>
               </div>
             </div>
-            {baseConfirmed && (
+            {baseConfirmed&&(
               <div style={{background:"rgba(34,197,94,0.12)",border:"1px solid rgba(34,197,94,0.3)",borderRadius:10,padding:"9px 13px",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontSize:16}}>🏢</span>
                 <div style={{flex:1}}><div style={{color:"#fff",fontSize:12,fontWeight:700}}>{baseInfo.company}</div><div style={{color:"rgba(255,255,255,0.55)",fontSize:11}}>{baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div></div>
@@ -314,35 +470,22 @@ export default function App() {
           </div>
         </div>
 
-        {tab==="assessment" && (
+        {tab==="assessment"&&(
           <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 28px"}}>
-            {completedSteps.length > 0 && (() => {
-              const allText = STEPS.filter(s=>results[s.id]).map(s=>`=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
-              return (
-                <button onClick={()=>{ navigator.clipboard.writeText(allText).then(()=>{setGlobalCopied(true);setTimeout(()=>setGlobalCopied(false),2000);}); }} style={{width:"100%",padding:"13px",marginBottom:12,background:globalCopied?"linear-gradient(135deg,#166534,#15803d)":"linear-gradient(135deg,#1d4ed8,#3b82f6)",border:"none",borderRadius:13,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                  <span style={{fontSize:18}}>{globalCopied?"✅":"📋"}</span> {globalCopied?`전체 복사 완료! (${completedSteps.length}/6 단계)`:`전체 내용 복사 (${completedSteps.length}/6 완료)`}
-                </button>
-              );
+            {completedSteps.length>0&&(()=>{
+              const allText=STEPS.filter(s=>results[s.id]).map(s=>`=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");
+              return <button onClick={()=>{navigator.clipboard.writeText(allText).then(()=>{setGlobalCopied(true);setTimeout(()=>setGlobalCopied(false),2000);});}} style={{width:"100%",padding:"13px",marginBottom:12,background:globalCopied?"linear-gradient(135deg,#166534,#15803d)":"linear-gradient(135deg,#1d4ed8,#3b82f6)",border:"none",borderRadius:13,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <span style={{fontSize:18}}>{globalCopied?"✅":"📋"}</span> {globalCopied?`전체 복사 완료! (${completedSteps.length}/6 단계)`:`전체 내용 복사 (${completedSteps.length}/6 완료)`}
+              </button>;
             })()}
-            {linkedSirenCases.length > 0 && (
+            {linkedSirenCases.length>0&&(
               <div style={{background:"linear-gradient(135deg,rgba(220,38,38,0.08),rgba(220,38,38,0.03))",border:"2px solid rgba(220,38,38,0.25)",borderRadius:13,padding:"12px 14px",marginBottom:12}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <span style={{fontSize:18}}>🚨</span>
-                  <div>
-                    <div style={{fontSize:13,fontWeight:800,color:C.siren}}>
-                      중대재해 사이렌 연계
-                    </div>
-                    <div style={{fontSize:11,color:"#7f1d1d"}}>
-                      위험성평가 완료! 동종 업종 실제 사고사례를 현장에 공유하세요
-                    </div>
-                  </div>
+                  <div><div style={{fontSize:13,fontWeight:800,color:C.siren}}>중대재해 사이렌 연계</div><div style={{fontSize:11,color:"#7f1d1d"}}>위험성평가 완료! 동종 업종 실제 사고사례를 현장에 공유하세요</div></div>
                 </div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {linkedSirenCases.map((c,i)=>(
-                    <button key={i} onClick={()=>setTab("siren")} style={{padding:"5px 10px",background:"rgba(220,38,38,0.1)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:8,color:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                      {c.keyword}
-                    </button>
-                  ))}
+                  {linkedSirenCases.map((c,i)=><button key={i} onClick={()=>setTab("siren")} style={{padding:"5px 10px",background:"rgba(220,38,38,0.1)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:8,color:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>{c.keyword}</button>)}
                 </div>
               </div>
             )}
@@ -369,7 +512,7 @@ export default function App() {
           </div>
         )}
 
-        {tab==="siren" && (
+        {tab==="siren"&&(
           <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 28px"}}>
             <div style={{background:"linear-gradient(135deg,#7f1d1d,#dc2626)",borderRadius:14,padding:"18px",marginBottom:14,textAlign:"center"}}>
               <div style={{fontSize:32,marginBottom:6}}>🚨</div>
@@ -386,24 +529,19 @@ export default function App() {
               </div>
             </div>
             {sirenCases.map((c,i)=>{
-              const isCopied = sirenCopied===i;
-              const sirenText = formatSirenText(c);
+              const isCopied=sirenCopied===i;
               return (
                 <div key={i} style={{background:"#fff",border:"2px solid rgba(220,38,38,0.12)",borderLeft:`4px solid ${C.siren}`,borderRadius:14,padding:"16px",marginBottom:12}}>
-                  <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:10}}>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,flexWrap:"wrap"}}>
-                        <span style={{fontSize:10,fontWeight:700,color:"#fff",background:C.siren,padding:"2px 8px",borderRadius:20}}>{c.severity}</span>
-                        <span style={{fontSize:10,fontWeight:700,color:C.siren,background:"rgba(220,38,38,0.08)",padding:"2px 8px",borderRadius:20}}>{c.keyword}</span>
-                        <span style={{fontSize:10,color:C.slate}}>{c.date} · {c.industry}</span>
-                      </div>
-                      <div style={{fontSize:14,fontWeight:800,color:C.navy,lineHeight:1.4}}>{c.title}</div>
-                    </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,fontWeight:700,color:"#fff",background:C.siren,padding:"2px 8px",borderRadius:20}}>{c.severity}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:C.siren,background:"rgba(220,38,38,0.08)",padding:"2px 8px",borderRadius:20}}>{c.keyword}</span>
+                    <span style={{fontSize:10,color:C.slate}}>{c.date} · {c.industry}</span>
                   </div>
+                  <div style={{fontSize:14,fontWeight:800,color:C.navy,lineHeight:1.4,marginBottom:10}}>{c.title}</div>
                   <div style={{marginBottom:8}}><div style={{fontSize:11,fontWeight:700,color:C.siren,marginBottom:3}}>🔴 발생 경위</div><div style={{fontSize:12,color:"#374151",lineHeight:1.6,background:"rgba(220,38,38,0.04)",padding:"8px 10px",borderRadius:8}}>{c.situation}</div></div>
                   <div style={{marginBottom:8}}><div style={{fontSize:11,fontWeight:700,color:C.amber,marginBottom:3}}>⚠️ 원인 분석</div><div style={{fontSize:12,color:"#374151",lineHeight:1.6,background:"rgba(245,158,11,0.05)",padding:"8px 10px",borderRadius:8}}>{c.cause}</div></div>
                   <div style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:700,color:C.green,marginBottom:3}}>✅ 재발방지 대책</div><div style={{fontSize:12,color:"#374151",lineHeight:1.6,background:"rgba(34,197,94,0.05)",padding:"8px 10px",borderRadius:8}}>{c.prevention}</div></div>
-                  <button onClick={()=>{navigator.clipboard.writeText(sirenText).then(()=>{setSirenCopied(i);setTimeout(()=>setSirenCopied(null),2000);});}} style={{width:"100%",padding:"11px",background:isCopied?"linear-gradient(135deg,#166534,#15803d)":`linear-gradient(135deg,${C.siren},#b91c1c)`,border:"none",borderRadius:10,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <button onClick={()=>{navigator.clipboard.writeText(formatSirenText(c)).then(()=>{setSirenCopied(i);setTimeout(()=>setSirenCopied(null),2000);});}} style={{width:"100%",padding:"11px",background:isCopied?"linear-gradient(135deg,#166534,#15803d)":`linear-gradient(135deg,${C.siren},#b91c1c)`,border:"none",borderRadius:10,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                     <span>{isCopied?"✅":"📋"}</span> {isCopied?"복사 완료! 카톡/문자로 공유하세요":"전체 내용 복사 · 즉시 현장 공유"}
                   </button>
                 </div>
@@ -415,11 +553,11 @@ export default function App() {
           </div>
         )}
 
-        {tab==="history" && (
+        {tab==="history"&&(
           <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 28px"}}>
-            {evalHistory.length===0 ? (
+            {evalHistory.length===0?(
               <div style={{textAlign:"center",padding:"50px 0",color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:12}}>📜</div><div style={{fontWeight:700}}>아직 작성된 문서가 없어요</div></div>
-            ) : (
+            ):(
               <div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                   <div style={{fontSize:12,color:C.slate,fontWeight:600}}>최근 {evalHistory.length}건</div>
@@ -439,7 +577,7 @@ export default function App() {
           </div>
         )}
 
-        {showProfileModal && (
+        {showProfileModal&&(
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100}} onClick={()=>setShowProfileModal(false)}>
             <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 36px",width:"100%",maxWidth:560}} onClick={e=>e.stopPropagation()}>
               <div style={{fontSize:15,fontWeight:800,color:C.navy,marginBottom:4}}>🏢 회사 프로필 저장</div>
@@ -458,6 +596,7 @@ export default function App() {
     );
   }
 
+  // STEP 폼
   if (screen==="step-form" && activeStep) {
     const isStep1=activeStep.id===1, isStep2=activeStep.multiSheet===true;
     const stepColor=activeStep.color;
@@ -493,7 +632,7 @@ export default function App() {
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
                   {sheets.map((s,i)=>(
                     <div key={s.id} style={{display:"flex",alignItems:"center",gap:2}}>
-                      <button onClick={()=>setActiveSheetId(s.id)} style={{padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",background:activeSheetId===s.id?stepColor:"#fff",color:activeSheetId===s.id?"#fff":C.slate,fontSize:12,fontWeight:700}}>
+                      <button onClick={()=>setActiveSheetId(s.id)} style={{padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",background:activeSheetId===s.id?stepColor:"#e2e8f0",color:activeSheetId===s.id?"#fff":C.slate,fontSize:12,fontWeight:700}}>
                         {s.result?"✅ ":""}{s.workArea?s.workArea.slice(0,8)+(s.workArea.length>8?"..":""):`공정 ${i+1}`}
                       </button>
                       {sheets.length>1&&<button onClick={()=>removeSheet(s.id)} style={{background:"none",border:"none",color:"#94a3b8",fontSize:14,cursor:"pointer",padding:"0 2px"}}>×</button>}
@@ -535,7 +674,7 @@ export default function App() {
                 <div style={{fontSize:12,fontWeight:700,color:C.accent}}>{sheets.filter(s=>s.result).length}/{sheets.length} 공정 완료</div>
                 <div style={{fontSize:11,color:"#64748b",marginTop:2}}>모든 공정 파악 후 다음 단계로 진행하세요</div>
               </div>
-              <button onClick={async()=>{ const r=getAllSheetsResult(); if(!r){alert("최소 1개 공정의 위험요인을 먼저 파악해주세요!");return;} setResult(r);setResults(prev=>({...prev,[2]:r}));setCompletedSteps(prev=>prev.includes(2)?prev:[...prev,2]);setScreen("step-result"); }} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+              <button onClick={()=>{ const r=getAllSheetsResult(); if(!r){alert("최소 1개 공정의 위험요인을 먼저 파악해주세요!");return;} setResult(r);setResults(prev=>({...prev,[2]:r}));setCompletedSteps(prev=>prev.includes(2)?prev:[...prev,2]);setScreen("step-result"); }} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
                 📋 전체 결과 확인 및 다음 단계로
               </button>
             </div>
@@ -571,90 +710,6 @@ export default function App() {
             </div>
           </div>
         )}
-      </div>
-    );
-  }
-
-  if (screen==="step-result" && activeStep) {
-    const stepIdx=STEPS.findIndex(s=>s.id===activeStep.id);
-    const nextStep=stepIdx!==-1&&stepIdx+1<STEPS.length?STEPS[stepIdx+1]:null;
-    const stepColor=activeStep.color||C.purple;
-    const relatedCases=getRelatedCases();
-    const [localCopied,setLocalCopied]=useState(false);
-    return (
-      <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif"}}>
-        <style>{`*{box-sizing:border-box;}@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}`}</style>
-        <div style={{background:`linear-gradient(135deg,${C.navy},${C.blue})`,padding:"14px 16px",position:"sticky",top:0,zIndex:50}}>
-          <div style={{maxWidth:560,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
-            <button onClick={()=>setScreen("step-form")} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"6px 11px",color:"#fff",fontSize:13,cursor:"pointer"}}>← 뒤로</button>
-            <div style={{flex:1,color:"#fff",fontSize:14,fontWeight:700}}>{activeStep.icon} {activeStep.title} 결과</div>
-            {!loading&&result&&(
-              <button onClick={()=>{navigator.clipboard.writeText(result).then(()=>{setLocalCopied(true);setTimeout(()=>setLocalCopied(false),2000);});}} style={{background:localCopied?"rgba(34,197,94,0.3)":"rgba(255,255,255,0.15)",border:`1px solid ${localCopied?"rgba(34,197,94,0.5)":"rgba(255,255,255,0.3)"}`,borderRadius:8,padding:"6px 10px",color:"#fff",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                {localCopied?"✅ 복사됨":"📋 전체복사"}
-              </button>
-            )}
-          </div>
-        </div>
-        <div style={{maxWidth:560,margin:"0 auto",padding:"16px 14px 32px"}}>
-          {loading ? (
-            <div style={{background:"#fff",borderRadius:20,padding:"50px 20px",textAlign:"center"}}>
-              <div style={{fontSize:40,marginBottom:12}}>{activeStep.icon}</div>
-              <div style={{color:C.navy,fontWeight:800,fontSize:15,marginBottom:6}}>AI가 문서를 작성하고 있어요</div>
-              <div style={{color:"#94a3b8",fontSize:13,marginBottom:20}}>고용노동부 기준으로 생성 중...</div>
-              <div style={{display:"flex",justifyContent:"center",gap:8}}>
-                {[0,1,2].map(i=><div key={i} style={{width:10,height:10,borderRadius:"50%",background:stepColor,animation:"pulse 1.2s ease-in-out infinite",animationDelay:`${i*0.4}s`}}/>)}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div style={{background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,borderRadius:14,padding:"14px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>✅</div>
-                <div>
-                  <div style={{color:"#fff",fontWeight:800,fontSize:14}}>{activeStep.title} 문서 생성 완료!</div>
-                  <div style={{color:"rgba(255,255,255,0.7)",fontSize:12,marginTop:2}}>{baseInfo.company||"사업장"} · {new Date().toLocaleDateString("ko-KR")}</div>
-                </div>
-              </div>
-
-              <button onClick={()=>{navigator.clipboard.writeText(result).then(()=>{setLocalCopied(true);setTimeout(()=>setLocalCopied(false),2000);});}} style={{width:"100%",padding:"13px",marginBottom:12,background:localCopied?"linear-gradient(135deg,#166534,#15803d)":`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <span style={{fontSize:18}}>{localCopied?"✅":"📋"}</span> {localCopied?"복사 완료! 붙여넣기 해서 사용하세요":"전체 내용 복사"}
-              </button>
-
-              {relatedCases.length>0&&(
-                <div style={{background:"linear-gradient(135deg,rgba(220,38,38,0.07),rgba(220,38,38,0.03))",border:"2px solid rgba(220,38,38,0.2)",borderRadius:13,padding:"12px 14px",marginBottom:12}}>
-                  <div style={{fontSize:12,fontWeight:800,color:C.siren,marginBottom:6}}>🚨 동종 업종 중대재해 사례 — 지금 현장에 공유하세요!</div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {relatedCases.slice(0,3).map((c,i)=>{
-                      const txt=formatSirenText(c);
-                      return <button key={i} onClick={()=>navigator.clipboard.writeText(txt)} style={{padding:"6px 11px",background:"rgba(220,38,38,0.1)",border:"1px solid rgba(220,38,38,0.25)",borderRadius:8,color:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>📋 {c.keyword} 복사</button>;
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div style={{background:"#fff",borderRadius:16,overflow:"hidden",marginBottom:12}}>
-                <div style={{background:`linear-gradient(135deg,${C.navy},${C.blue})`,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:16}}>{activeStep.icon}</span>
-                    <div><div style={{color:"#fff",fontWeight:700,fontSize:13}}>{activeStep.title}</div><div style={{color:"rgba(255,255,255,0.5)",fontSize:11}}>고용노동부 고시 제2024-76호 기준</div></div>
-                  </div>
-                </div>
-                <div style={{padding:"16px"}}>
-                  <ResultViewer text={result} color={stepColor}/>
-                </div>
-              </div>
-
-              {nextStep&&(
-                <button onClick={()=>{setActiveStep(nextStep);setStepData({});setResult(results[nextStep.id]||"");setScreen("step-form");}} style={{width:"100%",padding:"14px",marginBottom:8,background:`linear-gradient(135deg,${nextStep.color},${nextStep.color}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>
-                  다음 → STEP {nextStep.id}: {nextStep.title} {nextStep.icon}
-                </button>
-              )}
-              <button onClick={()=>setScreen("home")} style={{width:"100%",padding:"12px",background:"#fff",border:"2px solid #e2e8f0",borderRadius:13,color:C.navy,fontSize:14,fontWeight:700,cursor:"pointer"}}>🏠 홈으로</button>
-              <div style={{marginTop:10,padding:"11px 14px",background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:10,fontSize:12,color:"#92400e",lineHeight:1.6}}>
-                ⚠️ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     );
   }
