@@ -121,7 +121,7 @@ function ResultViewer({ text, color }) {
         return (
           <div key={i} style={{ marginBottom: 12, borderRadius: 10, border: `1px solid ${color}20`, overflow: "hidden" }}>
             {sec.title && (
-              <div style={{ background: `${color}12`, borderBottom: `1px solid ${color}20`, padding: "9px 14px", display: "flex", alignItems: "center", justifyBetween: "space-between" }}>
+              <div style={{ background: `${color}12`, borderBottom: `1px solid ${color}20`, padding: "9px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: color }}>{sec.title}</span>
                 <button onClick={() => copyText(secText, setCopied, i)} style={{ background: isCopied ? `${C.green}20` : `${color}15`, border: `1px solid ${isCopied ? C.green : color}30`, borderRadius: 6, padding: "3px 9px", color: isCopied ? C.green : color, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{isCopied ? "✓ 복사됨" : "복사"}</button>
               </div>
@@ -149,7 +149,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   
-  // 브라우저 window.history 스코프 충돌을 피하기 위해 이름을 evalHistory로 변경
   const [evalHistory, setEvalHistory] = useState([]);
   
   const [showScenario, setShowScenario] = useState(false);
@@ -242,7 +241,7 @@ export default function App() {
   );
 
   const BaseInfoBanner = () => baseConfirmed && baseInfo.company ? (
-    <div style={{ background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", borderRadius:11, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyBetween: "space-between" }}>
+    <div style={{ background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", borderRadius:11, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyContent: "space-between" }}>
       <div><div style={{fontSize:12,fontWeight:700,color:"#166534"}}>공통정보 자동 적용 중</div><div style={{fontSize:12,color:"#4b7c5e",marginTop:2}}>{baseInfo.company} · {baseInfo.industry} · {baseInfo.workers} · {baseInfo.manager}</div></div>
       <button onClick={()=>setShowProfileModal(true)} style={{background:"none",border:"1px solid rgba(34,197,94,0.4)",borderRadius:7,padding:"4px 10px",color:"#166534",fontSize:11,fontWeight:700,cursor:"pointer"}}>수정</button>
     </div>
@@ -310,7 +309,7 @@ export default function App() {
         <div style={{maxWidth:560,margin:"0 auto",padding:"12px 14px 0"}}>
           <div style={{display:"flex",background:"#e2e8f0",borderRadius:11,padding:3,gap:3}}>
             {[{k:"assessment",l:"📋 위험성평가"},{k:"siren",l:"🚨 중대재해 사이렌"},{k:"history",l:"📜 이력"}].map(t=>(
-              <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:tab===t.k?(t.k==="siren"?C.siren:"#fff"):"transparent",color:tab===t.k?(t.k==="siren"?"#fff":C.navy):C.slate,fontSize:12,fontWeight:700,cursor:"pointer embezzlement"}}>{t.l}</button>
+              <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:tab===t.k?(t.k==="siren"?C.siren:"#fff"):"transparent",color:tab===t.k?(t.k==="siren"?"#fff":C.navy):C.slate,fontSize:12,fontWeight:700,cursor:"pointer"}}>{t.l}</button>
             ))}
           </div>
         </div>
@@ -326,39 +325,39 @@ export default function App() {
               );
             })()}
             {linkedSirenCases.length > 0 && (
-  <div style={{background:"linear-gradient(135deg,rgba(220,38,38,0.08),rgba(220,38,38,0.03))",border:"2px solid rgba(220,38,38,0.25)",borderRadius:13,padding:"12px 14px",marginBottom:12}}>
-    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-      <span style={{fontSize:18}}>🚨</span>
-      <div>
-        <div style={{fontSize:13,fontWeight:800,color:C.siren}}>
-          중대재해 사이렌 연계
-        </div>
-        <div style={{fontSize:11,color:"#7f1d1d"}}>
-          위험성평가 완료! 동종 업종 실제 사고사례를 현장에 공유하세요
-        </div>
-      </div>
-    </div>
-    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-      {linkedSirenCases.map((c,i)=>(
-        <button key={i} onClick={()=>setTab("siren")} style={{padding:"5px 10px",background:"rgba(220,38,38,0.1)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:8,color:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>
-          {c.keyword}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
-<div style={{display:"flex",flexDirection:"column",gap:8}}>
-  {STEPS.map((s,i)=>{
-    const done=completedSteps.includes(i+1);
-    return (
-      <button key={s.id} onClick={()=>{setActiveStep(s);setStepData({});setResult(results[s.id]||"");setScreen("step-form");}} style={{width:"100%",background:"#fff",border:`2px solid ${done?C.green:"#e2e8f0"}`,borderRadius:13,padding:"13px 15px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
-        <div style={{width:40,height:40,borderRadius:10,flexShrink:0,background:done?`${C.green}18`:`${s.color}12`,border:`2px solid ${done?C.green:s.color}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19}}>{done?"✅":s.icon}</div>
-        <div style={{flex:1}}>
-          <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
-            <span style={{fontSize:10,fontWeight:700,color:s.color,background:`${s.color}15`,padding:"1px 7px",borderRadius:20}}>STEP {s.id}</span>
-            {done&&<span style={{fontSize:10,color:C.green,fontWeight:700}}>완료</span>}
-            {s.id===1&&!baseConfirmed&&<span style={{fontSize:10,color:C.amber,fontWeight:700}}>← 여기서 시작!</span>}
-          </div>
+              <div style={{background:"linear-gradient(135deg,rgba(220,38,38,0.08),rgba(220,38,38,0.03))",border:"2px solid rgba(220,38,38,0.25)",borderRadius:13,padding:"12px 14px",marginBottom:12}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:18}}>🚨</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:800,color:C.siren}}>
+                      중대재해 사이렌 연계
+                    </div>
+                    <div style={{fontSize:11,color:"#7f1d1d"}}>
+                      위험성평가 완료! 동종 업종 실제 사고사례를 현장에 공유하세요
+                    </div>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {linkedSirenCases.map((c,i)=>(
+                    <button key={i} onClick={()=>setTab("siren")} style={{padding:"5px 10px",background:"rgba(220,38,38,0.1)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:8,color:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                      {c.keyword}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {STEPS.map((s,i)=>{
+                const done=completedSteps.includes(i+1);
+                return (
+                  <button key={s.id} onClick={()=>{setActiveStep(s);setStepData({});setResult(results[s.id]||"");setScreen("step-form");}} style={{width:"100%",background:"#fff",border:`2px solid ${done?C.green:"#e2e8f0"}`,borderRadius:13,padding:"13px 15px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+                    <div style={{width:40,height:40,borderRadius:10,flexShrink:0,background:done?`${C.green}18`:`${s.color}12`,border:`2px solid ${done?C.green:s.color}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19}}>{done?"✅":s.icon}</div>
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                        <span style={{fontSize:10,fontWeight:700,color:s.color,background:`${s.color}15`,padding:"1px 7px",borderRadius:20}}>STEP {s.id}</span>
+                        {done&&<span style={{fontSize:10,color:C.green,fontWeight:700}}>완료</span>}
+                        {s.id===1&&!baseConfirmed&&<span style={{fontSize:10,color:C.amber,fontWeight:700}}>← 여기서 시작!</span>}
+                      </div>
                       <div style={{fontSize:14,fontWeight:700,color:C.navy}}>{s.title}</div>
                       <div style={{fontSize:11,color:"#94a3b8",marginTop:1}}>{s.id===1?"사업장 공통정보 입력 → 전 단계 자동적용":s.subtitle}</div>
                     </div>
