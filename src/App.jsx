@@ -323,9 +323,10 @@ export default function App() {
 
   const getAllData = () => ({ ...baseInfo, ...stepData });
 
-  const callAI = async (prompt) => {
+  const callAI = async (prompt, overrideStepData) => {
     setLoading(true); setResult("");
-    const info = Object.entries(getAllData()).map(([k,v]) => `${k}: ${v||"미입력"}`).join("\n");
+    const merged = overrideStepData ? {...baseInfo,...overrideStepData} : getAllData();
+    const info = Object.entries(merged).filter(([k])=>k!=="extraScenarios").map(([k,v]) => `${k}: ${typeof v==="object"?JSON.stringify(v):v||"미입력"}`).join("\n");
     try {
       const res = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:prompt, messages:[{ role:"user", content:`다음 정보로 문서를 작성해주세요:\n\n${info}` }] }) });
       const d = await res.json();
@@ -511,7 +512,16 @@ export default function App() {
               {STEPS.map((s,i)=>{
                 const done=completedSteps.includes(i+1);
                 return (
-                  <button key={s.id} onClick={()=>{setActiveStep(s);setStepData({});setResult(results[s.id]||"");setScreen("step-form");}} style={{width:"100%",background:"#fff",border:`2px solid ${done?C.green:"#e2e8f0"}`,borderRadius:13,padding:"13px 15px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+                  <button key={s.id} onClick={()=>{
+                    setActiveStep(s);
+                    if (s.id===3 && results[2]) {
+                      setStepData({ hazards: results[2].slice(0,600), extraScenarios:[] });
+                    } else {
+                      setStepData({});
+                    }
+                    setResult(results[s.id]||"");
+                    setScreen("step-form");
+                  }} style={{width:"100%",background:"#fff",border:`2px solid ${done?C.green:"#e2e8f0"}`,borderRadius:13,padding:"13px 15px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
                     <div style={{width:40,height:40,borderRadius:10,flexShrink:0,background:done?`${C.green}18`:`${s.color}12`,border:`2px solid ${done?C.green:s.color}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19}}>{done?"✅":s.icon}</div>
                     <div style={{flex:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
@@ -752,14 +762,96 @@ export default function App() {
               <div style={{background:"#fff",borderRadius:14,padding:"16px",boxShadow:"0 2px 8px rgba(0,0,0,0.05)",marginBottom:12}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:12}}>{activeStep.icon} 이 단계 전용 정보</div>
                 {activeStep.hasScenario&&<button onClick={()=>setShowScenario(true)} style={{width:"100%",padding:"9px",marginBottom:12,background:"rgba(245,158,11,0.08)",border:"1.5px solid rgba(245,158,11,0.3)",borderRadius:9,color:C.amber,fontSize:12,fontWeight:700,cursor:"pointer"}}>🏭 업종별 시나리오로 자동완성</button>}
-                {activeStep.uniqueFields&&activeStep.uniqueFields.map(f=>(
-                  <div key={f.key} style={{marginBottom:10}}>
-                    <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>{f.label} {stepData[f.key]&&<span style={{color:C.green,fontSize:11,marginLeft:6}}>자동완성</span>}</label>
-                    <input value={stepData[f.key]||""} onChange={e=>setStepData(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} style={{width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${stepData[f.key]?"rgba(34,197,94,0.4)":"#e2e8f0"}`,fontSize:13,color:C.navy,outline:"none",background:stepData[f.key]?"rgba(34,197,94,0.04)":"#f8fafc",boxSizing:"border-box"}}/>
-                  </div>
-                ))}
+                {activeStep.uniqueFields&&activeStep.uniqueFields.map(f=>{
+                  // STEP3 hazards: textarea + 자동입력 뱃지
+                  if (f.key==="hazards") {
+                    const isAutoFilled = !!(stepData[f.key] && results[2] && stepData[f.key].startsWith(results[2].slice(0,30)));
+                    return (
+                      <div key={f.key} style={{marginBottom:12}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                          <label style={{fontSize:12,fontWeight:700,color:"#374151"}}>{f.label}</label>
+                          {isAutoFilled&&<span style={{fontSize:10,color:"#fff",fontWeight:700,background:C.green,padding:"1px 7px",borderRadius:10}}>STEP2 자동입력</span>}
+                        </div>
+                        <textarea
+                          value={stepData[f.key]||""}
+                          onChange={e=>setStepData(p=>({...p,[f.key]:e.target.value}))}
+                          placeholder={f.placeholder}
+                          rows={5}
+                          style={{width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${isAutoFilled?"rgba(34,197,94,0.4)":"#e2e8f0"}`,fontSize:12,color:C.navy,outline:"none",background:isAutoFilled?"rgba(34,197,94,0.04)":"#f8fafc",boxSizing:"border-box",resize:"vertical",lineHeight:1.6,fontFamily:"'Noto Sans KR',sans-serif"}}
+                        />
+                        {/* ── 추가 위험 시나리오 입력 ── */}
+                        <div style={{marginTop:12,borderTop:"1.5px dashed #e2e8f0",paddingTop:12}}>
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                            <div>
+                              <div style={{fontSize:12,fontWeight:700,color:C.navy}}>✏️ 위험 시나리오 추가 입력</div>
+                              <div style={{fontSize:11,color:"#94a3b8",marginTop:1}}>STEP2에서 놓친 시나리오를 직접 추가하세요</div>
+                            </div>
+                            <button
+                              onClick={()=>setStepData(p=>({...p,extraScenarios:[...(p.extraScenarios||[]),{id:Date.now(),scenario:"",risk:"",measure:""}]}))}
+                              style={{padding:"6px 12px",background:`linear-gradient(135deg,${C.accent},${C.accent}cc)`,border:"none",borderRadius:9,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+                              + 시나리오 추가
+                            </button>
+                          </div>
+                          {(stepData.extraScenarios||[]).length===0&&(
+                            <div style={{textAlign:"center",padding:"14px 0",background:`rgba(14,165,233,0.04)`,border:`1.5px dashed ${C.accent}30`,borderRadius:10}}>
+                              <div style={{fontSize:11,color:"#94a3b8"}}>추가할 위험 시나리오가 있으면 버튼을 눌러 입력하세요</div>
+                            </div>
+                          )}
+                          {(stepData.extraScenarios||[]).map((es,idx)=>(
+                            <div key={es.id} style={{background:`rgba(14,165,233,0.04)`,border:`1.5px solid ${C.accent}25`,borderRadius:11,padding:"12px",marginBottom:10}}>
+                              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                                <span style={{fontSize:12,fontWeight:700,color:C.accent}}>추가 시나리오 {idx+1}</span>
+                                <button onClick={()=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).filter(e=>e.id!==es.id)}))} style={{background:"none",border:"none",color:"#94a3b8",fontSize:16,cursor:"pointer",padding:"0 4px"}}>×</button>
+                              </div>
+                              {[
+                                {field:"scenario",label:"작업상황 → 위험요인 → 예상 재해유형",placeholder:"예: 야간 단독 전기작업 → 잔류전압 → 감전"},
+                                {field:"risk",label:"가능성 × 중대성 (위험성 추정)",placeholder:"예: 가능성 중(2) × 중대성 상(3) = 위험성 6 → 허용불가"},
+                                {field:"measure",label:"필요 조치",placeholder:"예: 작업 전 전원 차단 확인, 절연장갑 착용"},
+                              ].map(row=>(
+                                <div key={row.field} style={{marginBottom:7}}>
+                                  <label style={{fontSize:11,fontWeight:700,color:"#374151",display:"block",marginBottom:3}}>{row.label}</label>
+                                  <input
+                                    value={es[row.field]||""}
+                                    onChange={e=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).map(s=>s.id===es.id?{...s,[row.field]:e.target.value}:s)}))}
+                                    placeholder={row.placeholder}
+                                    style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1.5px solid ${C.accent}20`,fontSize:12,color:C.navy,outline:"none",background:"#fff",boxSizing:"border-box"}}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                          {(stepData.extraScenarios||[]).length>0&&(
+                            <div style={{fontSize:11,color:C.accent,fontWeight:600,textAlign:"center",marginTop:2}}>
+                              {(stepData.extraScenarios||[]).length}개 추가됨 · AI 문서 작성 시 자동 포함됩니다
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  // 나머지 필드는 기존 input
+                  return (
+                    <div key={f.key} style={{marginBottom:10}}>
+                      <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>{f.label} {stepData[f.key]&&<span style={{color:C.green,fontSize:11,marginLeft:6}}>자동완성</span>}</label>
+                      <input value={stepData[f.key]||""} onChange={e=>setStepData(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} style={{width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${stepData[f.key]?"rgba(34,197,94,0.4)":"#e2e8f0"}`,fontSize:13,color:C.navy,outline:"none",background:stepData[f.key]?"rgba(34,197,94,0.04)":"#f8fafc",boxSizing:"border-box"}}/>
+                    </div>
+                  );
+                })}
               </div>
-              <button onClick={async()=>{ if(isStep1){setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);} setScreen("step-result"); await callAI(activeStep.prompt); setCompletedSteps(prev=>prev.includes(activeStep.id)?prev:[...prev,activeStep.id]); }} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+              <button onClick={async()=>{
+                if(isStep1){setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);}
+                const extras=(stepData.extraScenarios||[]).filter(e=>e.scenario);
+                let finalStepData=stepData;
+                if(extras.length>0){
+                  const lines=extras.map((e,i)=>[`${i+1}. ${e.scenario}`,e.risk?`   위험성: ${e.risk}`:"",e.measure?`   조치: ${e.measure}`:""].filter(Boolean).join("\n")).join("\n");
+                  const extraText="\n\n【현장 추가 위험 시나리오】\n"+lines;
+                  finalStepData={...stepData,hazards:(stepData.hazards||"")+extraText};
+                  setStepData(finalStepData);
+                }
+                setScreen("step-result");
+                await callAI(activeStep.prompt,finalStepData);
+                setCompletedSteps(prev=>prev.includes(activeStep.id)?prev:[...prev,activeStep.id]);
+              }} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
                 🤖 AI 문서 자동 작성
               </button>
             </div>
