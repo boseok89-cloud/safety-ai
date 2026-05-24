@@ -201,6 +201,25 @@ function StepResultScreen({ activeStep, result, loading, results, baseInfo, setS
   );
 }
 
+// ── ProfileModal ─────────────────────────────────────────────────────────
+function ProfileModal({ baseInfo, setBaseInfo, onClose }) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100}} onClick={onClose}>
+      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 36px",width:"100%",maxWidth:560}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:15,fontWeight:800,color:C.navy,marginBottom:4}}>🏢 회사 프로필 저장</div>
+        <div style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>저장하면 앱을 닫아도 자동 불러와요</div>
+        {BASE_FIELDS.map(f=>(
+          <div key={f.key} style={{marginBottom:12}}>
+            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:5}}>{f.label}</label>
+            <input value={baseInfo[f.key]||""} onChange={e=>setBaseInfo(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:14,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+          </div>
+        ))}
+        <button onClick={onClose} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${C.navy},${C.blue})`,border:"none",borderRadius:12,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:4}}>💾 저장하기</button>
+      </div>
+    </div>
+  );
+}
+
 // ── AccidentFullScreen ────────────────────────────────────────────────────
 function AccidentFullScreen({ baseInfo, onBack, onSave }) {
   const [report, setReport] = useState({id:Date.now(),who:"",when:"",where:"",what:"",how:"",why:"",object:"",directCause:"",indirectCause:"",damage:"",improvement:"",aiResult:"",evalLinked:false});
@@ -453,21 +472,6 @@ export default function App() {
     setStepData({hazards:situation}); setResult(""); setSirenEvalType("accident"); setScreen("step-form");
   };
 
-  const ProfileModal=()=>(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100}} onClick={()=>setShowProfileModal(false)}>
-      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 36px",width:"100%",maxWidth:560}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:15,fontWeight:800,color:C.navy,marginBottom:4}}>🏢 회사 프로필 저장</div>
-        <div style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>저장하면 앱을 닫아도 자동 불러와요</div>
-        {BASE_FIELDS.map(f=>(
-          <div key={f.key} style={{marginBottom:12}}>
-            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:5}}>{f.label}</label>
-            <input value={baseInfo[f.key]||""} onChange={e=>setBaseInfo(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:14,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
-          </div>
-        ))}
-        <button onClick={async()=>{setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);setShowProfileModal(false);}} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${C.navy},${C.blue})`,border:"none",borderRadius:12,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:4}}>💾 저장하기</button>
-      </div>
-    </div>
-  );
 
   // ── 랜딩 ────────────────────────────────────────────────────────────────
   if(screen==="landing") return (
@@ -511,7 +515,7 @@ export default function App() {
         </div>
         <div style={{textAlign:"center",fontSize:11,color:"#cbd5e1",lineHeight:1.7}}>산업안전보건법 제36조 · 상시근로자 1인 이상 의무<br/>결과 <strong style={{color:"#94a3b8"}}>3년 보존</strong></div>
       </div>
-      {showProfileModal&&<ProfileModal/>}
+      {showProfileModal&&<ProfileModal baseInfo={baseInfo} setBaseInfo={setBaseInfo} onClose={async()=>{setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);setShowProfileModal(false);}}/>}
     </div>
   );
 
@@ -766,7 +770,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {showProfileModal&&<ProfileModal/>}
+        {showProfileModal&&<ProfileModal baseInfo={baseInfo} setBaseInfo={setBaseInfo} onClose={async()=>{setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);setShowProfileModal(false);}}/>}
       </div>
     );
   }
@@ -966,10 +970,10 @@ export default function App() {
             </div>
           </div>
         )}
-        {showProfileModal&&<ProfileModal/>}
+        {showProfileModal&&<ProfileModal baseInfo={baseInfo} setBaseInfo={setBaseInfo} onClose={async()=>{setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);setShowProfileModal(false);}}/>}
       </div>
     );
   }
 
   return null;
-}=
+}
