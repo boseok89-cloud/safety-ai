@@ -1172,4 +1172,5 @@ export default function App() {
                                   <label style={{fontSize:11,fontWeight:700,color:"#374151",display:"block",marginBottom:2}}>{row.label}</label>
                                   <input value={es[row.field]||""} onChange={e=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).map(s=>s.id===es.id?{...s,[row.field]:e.target.value}:s)}))} placeholder={row.placeholder} style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1.5px solid ${C.accent}18`,fontSize:12,color:C.navy,outline:"none",background:"#fff",boxSizing:"border-box"}}/>
                                 </div>
-                              ))
+                              ))}
+                           
