@@ -99,6 +99,25 @@ const formatSirenText = (c) => `🚨 중대재해 사이렌 — ${c.title}\n\n[�
 async function saveStorage(key, val) { try { await window.storage.set(key, JSON.stringify(val)); } catch {} }
 async function loadStorage(key) { try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; } }
 
+// ── 통계 수집 ──────────────────────────────────────────────────────────────
+async function trackVisit() {
+  try {
+    const today = new Date().toLocaleDateString("ko-KR");
+    const ts = new Date().toISOString();
+    const visits = JSON.parse((await window.storage.get("stat-visits"))?.value||"[]");
+    visits.push({ date: today, ts });
+    if (visits.length > 1000) visits.splice(0, visits.length - 1000);
+    await window.storage.set("stat-visits", JSON.stringify(visits));
+  } catch {}
+}
+async function trackAction(key) {
+  try {
+    const actions = JSON.parse((await window.storage.get("stat-actions"))?.value||"{}");
+    actions[key] = (actions[key]||0) + 1;
+    await window.storage.set("stat-actions", JSON.stringify(actions));
+  } catch {}
+}
+
 // ── ResultViewer ──────────────────────────────────────────────────────────
 function ResultViewer({ text, color }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
@@ -177,7 +196,7 @@ function StepResultScreen({ activeStep, result, loading, results, baseInfo, setS
                 <div style={{fontSize:12,fontWeight:800,color:C.siren,marginBottom:6}}>🚨 동종 업종 중대재해 사례</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {relatedCases.slice(0,3).map((c,i)=>(
-                    <button key={i} onClick={()=>{navigator.clipboard.writeText(formatSirenText(c)).then(()=>{setSirenCopied(i);setTimeout(()=>setSirenCopied(null),2000)});}} style={{padding:"6px 11px",background:sirenCopied===i?"rgba(34,197,94,0.15)":"rgba(220,38,38,0.1)",border:`1px solid ${sirenCopied===i?"rgba(34,197,94,0.4)":"rgba(220,38,38,0.25)"}`,borderRadius:8,color:sirenCopied===i?C.green:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                    <button key={i} onClick={()=>{navigator.clipboard.writeText(formatSirenText(c)).then(()=>{setSirenCopied(i);setTimeout(()=>setSirenCopied(null),2000);trackAction("siren-copy")});}} style={{padding:"6px 11px",background:sirenCopied===i?"rgba(34,197,94,0.15)":"rgba(220,38,38,0.1)",border:`1px solid ${sirenCopied===i?"rgba(34,197,94,0.4)":"rgba(220,38,38,0.25)"}`,borderRadius:8,color:sirenCopied===i?C.green:C.siren,fontSize:11,fontWeight:700,cursor:"pointer"}}>
                       {sirenCopied===i?"✅ 복사됨":`📋 ${c.keyword} 복사`}
                     </button>
                   ))}
@@ -520,6 +539,7 @@ export default function App() {
   const [showTbmForm, setShowTbmForm] = useState(false);
 
   useEffect(()=>{
+    trackVisit(); // 방문 기록
     (async()=>{
       const p=await loadStorage("company-profile"); if(p){setBaseInfo(p);setBaseConfirmed(true);}
       const h=await loadStorage("eval-history"); if(h) setEvalHistory(h);
@@ -613,7 +633,6 @@ export default function App() {
     setStepData({hazards:situation}); setResult(""); setSirenEvalType("accident"); setScreen("step-form");
   };
 
-
   // ── 랜딩 ────────────────────────────────────────────────────────────────
   if(screen==="landing") return (
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif"}}>
@@ -694,7 +713,7 @@ export default function App() {
             {key:"manager",icon:"👔",label:"안전보건관리책임자 요청",color:C.purple},
             {key:"major",icon:"⚠️",label:"중대재해 발생",color:C.siren},
           ].map(item=>(
-            <button key={item.key} onClick={()=>{setSirenEvalType(item.key);setActiveStep(STEPS.find(s=>s.id===1));setStepData({evalType:`수시평가 - ${item.label}`});setResult("");setCompletedSteps([]);setScreen("step-form");}} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 12px",background:`${item.color}06`,border:`1.5px solid ${item.color}20`,borderRadius:10,cursor:"pointer",textAlign:"left",marginBottom:7}}>
+            <button key={item.key} onClick={()=>{setSirenEvalType(item.key);setActiveStep(STEPS.find(s=>s.id===1));setStepData({evalType:`수시평가 - ${item.label}`});setResult("");setCompletedSteps([]);trackAction("urgent-eval");setScreen("step-form");}} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 12px",background:`${item.color}06`,border:`1.5px solid ${item.color}20`,borderRadius:10,cursor:"pointer",textAlign:"left",marginBottom:7}}>
               <span style={{fontSize:20}}>{item.icon}</span>
               <div style={{fontSize:13,fontWeight:700,color:C.navy,flex:1}}>{item.label}</div>
               <div style={{color:"#cbd5e1",fontSize:16}}>›</div>
@@ -784,7 +803,7 @@ export default function App() {
                   w.document.write(printContent);
                   w.document.close();
                   w.focus();
-                  setTimeout(()=>{w.print();},300);
+                  setTimeout(()=>{w.print();},300);trackAction("pdf-save");
                 }} style={{flex:1,padding:"13px",background:"linear-gradient(135deg,#7c3aed,#6d28d9)",border:"none",borderRadius:13,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                   <span style={{fontSize:16}}>🖨️</span> PDF 저장
                 </button>
@@ -942,7 +961,7 @@ export default function App() {
               {key:"manager",icon:"👔",label:"안전보건관리책임자 요청",desc:"책임자 판단에 의한 수시 평가 지시",color:C.purple,badge:"자율 실시"},
               {key:"major",icon:"⚠️",label:"중대재해 발생",desc:"중대재해 발생 직후 긴급 위험성 재평가",color:C.siren,badge:"긴급"},
             ].map(item=>(
-              <button key={item.key} onClick={()=>{setSirenEvalType(item.key);if(item.key==="accident"&&accidentReports.length>0){setShowSirenEvalModal(true);}else{setActiveStep(STEPS.find(s=>s.id===1));setStepData({evalType:`수시평가 - ${item.label}`});setResult("");setCompletedSteps([]);setScreen("step-form");}}} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"14px",background:"#fff",border:`2px solid ${item.color}18`,borderLeft:`4px solid ${item.color}`,borderRadius:13,cursor:"pointer",textAlign:"left",marginBottom:10}}>
+              <button key={item.key} onClick={()=>{setSirenEvalType(item.key);if(item.key==="accident"&&accidentReports.length>0){setShowSirenEvalModal(true);}else{setActiveStep(STEPS.find(s=>s.id===1));setStepData({evalType:`수시평가 - ${item.label}`});setResult("");setCompletedSteps([]);trackAction("urgent-eval");setScreen("step-form");}}} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"14px",background:"#fff",border:`2px solid ${item.color}18`,borderLeft:`4px solid ${item.color}`,borderRadius:13,cursor:"pointer",textAlign:"left",marginBottom:10}}>
                 <span style={{fontSize:26,flexShrink:0}}>{item.icon}</span>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
@@ -980,7 +999,7 @@ export default function App() {
                 <div style={{marginBottom:6}}><div style={{fontSize:11,fontWeight:700,color:C.siren,marginBottom:2}}>🔴 발생 경위</div><div style={{fontSize:12,color:"#374151",lineHeight:1.5,background:"rgba(220,38,38,0.04)",padding:"7px 9px",borderRadius:7}}>{c.situation}</div></div>
                 <div style={{marginBottom:6}}><div style={{fontSize:11,fontWeight:700,color:C.amber,marginBottom:2}}>⚠️ 원인</div><div style={{fontSize:12,color:"#374151",lineHeight:1.5,background:"rgba(245,158,11,0.05)",padding:"7px 9px",borderRadius:7}}>{c.cause}</div></div>
                 <div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.green,marginBottom:2}}>✅ 재발방지</div><div style={{fontSize:12,color:"#374151",lineHeight:1.5,background:"rgba(34,197,94,0.05)",padding:"7px 9px",borderRadius:7}}>{c.prevention}</div></div>
-                <button onClick={()=>{navigator.clipboard.writeText(formatSirenText(c)).then(()=>{setSirenCopied(i);setTimeout(()=>setSirenCopied(null),2000)});}} style={{width:"100%",padding:"10px",background:sirenCopied===i?"linear-gradient(135deg,#166534,#15803d)":`linear-gradient(135deg,${C.siren},#b91c1c)`,border:"none",borderRadius:9,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                <button onClick={()=>{navigator.clipboard.writeText(formatSirenText(c)).then(()=>{setSirenCopied(i);setTimeout(()=>setSirenCopied(null),2000);trackAction("siren-copy")});}} style={{width:"100%",padding:"10px",background:sirenCopied===i?"linear-gradient(135deg,#166534,#15803d)":`linear-gradient(135deg,${C.siren},#b91c1c)`,border:"none",borderRadius:9,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                   {sirenCopied===i?"✅ 복사 완료! 카톡/문자로 공유하세요":"📋 전체 복사 · 즉시 현장 공유"}
                 </button>
               </div>
@@ -1016,7 +1035,7 @@ export default function App() {
                   <div style={{fontSize:11,color:C.slate,marginTop:2}}>{r.when||r.date} · {r.where||r.location}</div>
                 </button>
               ))}
-              <button onClick={()=>{setShowSirenEvalModal(false);setActiveStep(STEPS.find(s=>s.id===1));setStepData({evalType:"수시평가 - 산업재해 발생"});setResult("");setCompletedSteps([]);setScreen("step-form");}} style={{width:"100%",padding:"11px",background:"#f8fafc",border:"2px dashed #e2e8f0",borderRadius:11,color:C.slate,fontSize:13,fontWeight:600,cursor:"pointer",marginTop:4}}>보고서 없이 바로 시작</button>
+              <button onClick={()=>{setShowSirenEvalModal(false);setActiveStep(STEPS.find(s=>s.id===1));setStepData({evalType:"수시평가 - 산업재해 발생"});setResult("");setCompletedSteps([]);trackAction("urgent-eval");setScreen("step-form");}} style={{width:"100%",padding:"11px",background:"#f8fafc",border:"2px dashed #e2e8f0",borderRadius:11,color:C.slate,fontSize:13,fontWeight:600,cursor:"pointer",marginTop:4}}>보고서 없이 바로 시작</button>
             </div>
           </div>
         )}
@@ -1167,10 +1186,4 @@ export default function App() {
                                 <span style={{fontSize:11,fontWeight:700,color:C.accent}}>추가 시나리오 {idx+1}</span>
                                 <button onClick={()=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).filter(e=>e.id!==es.id)}))} style={{background:"none",border:"none",color:"#94a3b8",fontSize:15,cursor:"pointer"}}>×</button>
                               </div>
-                              {[{field:"scenario",label:"작업상황→위험요인→재해유형",placeholder:"예: 야간 전기작업→잔류전압→감전"},{field:"risk",label:"가능성×중대성",placeholder:"예: 가능성 중(2)×중대성 상(3)=위험성 6→허용불가"},{field:"measure",label:"필요 조치",placeholder:"예: 전원 차단 확인, 절연장갑 착용"}].map(row=>(
-                                <div key={row.field} style={{marginBottom:6}}>
-                                  <label style={{fontSize:11,fontWeight:700,color:"#374151",display:"block",marginBottom:2}}>{row.label}</label>
-                                  <input value={es[row.field]||""} onChange={e=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).map(s=>s.id===es.id?{...s,[row.field]:e.target.value}:s)}))} placeholder={row.placeholder} style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1.5px solid ${C.accent}18`,fontSize:12,color:C.navy,outline:"none",background:"#fff",boxSizing:"border-box"}}/>
-                                </div>
-                              ))}
-                           
+                              {[{field:"scenario",label:"작업
