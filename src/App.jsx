@@ -384,6 +384,8 @@ function AccidentFullScreen({ baseInfo, onBack, onSave }) {
   const [aiResult, setAiResult] = useState("");
   const [aiCopied, setAiCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("form");
+  const [autoAnalyzing, setAutoAnalyzing] = useState(false);
+  const [autoAnalyzed, setAutoAnalyzed] = useState(false);
 
   const SIX_W = [
     {key:"who",icon:"👤",label:"누가",placeholder:"예: 비계 작업반 근로자 홍○○ (경력 2년)"},
@@ -393,6 +395,45 @@ function AccidentFullScreen({ baseInfo, onBack, onSave }) {
     {key:"how",icon:"💥",label:"어떻게",placeholder:"예: 발판이 탈락하여 지면으로 추락"},
     {key:"why",icon:"❓",label:"왜",placeholder:"예: 발판 결속 불량 상태 미확인"},
   ];
+
+  // 기인물 입력 완료(onBlur) 시 직접원인·간접원인·개선대책 자동 분석
+  const autoAnalyzeCauses = async (currentReport) => {
+    const obj = currentReport.object || report.object;
+    if (!obj || obj.trim().length < 2) return;
+    // 사고경위 최소 1개 이상 있어야 실행
+    const hasContext = currentReport.how || currentReport.what || currentReport.why || report.how || report.what || report.why;
+    if (!hasContext) return;
+
+    setAutoAnalyzing(true);
+    const r = {...report, ...currentReport};
+    const info = [
+      `사업장: ${baseInfo.company||"미입력"} / 업종: ${baseInfo.industry||"미입력"}`,
+      `누가: ${r.who||"-"}`, `언제: ${r.when||"-"}`, `어디서: ${r.where||"-"}`,
+      `무엇을: ${r.what||"-"}`, `어떻게: ${r.how||"-"}`, `왜: ${r.why||"-"}`,
+      `기인물: ${r.object||"-"}`,
+    ].join("\n");
+    try {
+      const res = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-sonnet-4-6", max_tokens:800,
+        system:`산업안전 전문가로서 사고 정보를 분석해 아래 3가지만 JSON으로 반환하세요. 반드시 JSON만, 마크다운 없이 반환하세요.
+{"directCause":"직접 원인 (불안전한 행동·상태, 2~4줄)","indirectCause":"간접 원인 - 관리적 결함 (교육·감독·시스템 미흡, 2~3줄)","improvement":"개선대책 (번호 매기기, 3~5가지)"}`,
+        messages:[{role:"user",content:`다음 사고 정보로 직접원인, 간접원인, 개선대책을 분석하세요:\n\n${info}`}]
+      })});
+      const d = await res.json();
+      const raw = d.content?.map(b=>b.text||"").join("")||"";
+      const clean = raw.replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(clean);
+      setReport(p=>({
+        ...p,
+        directCause: parsed.directCause || p.directCause,
+        indirectCause: parsed.indirectCause || p.indirectCause,
+        improvement: parsed.improvement || p.improvement,
+      }));
+      setAutoAnalyzed(true);
+      setTimeout(()=>setAutoAnalyzed(false), 3000);
+    } catch(e) { /* 실패 시 조용히 무시 */ }
+    finally { setAutoAnalyzing(false); }
+  };
 
   const generateAI = async () => {
     setAiLoading(true); setActiveTab("ai");
@@ -440,29 +481,71 @@ function AccidentFullScreen({ baseInfo, onBack, onSave }) {
               ))}
             </div>
             <div style={{background:"#fff",borderRadius:14,padding:"16px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
-              <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:10}}>⚙️ 기인물</div>
-              <input value={report.object||""} onChange={e=>setReport(p=>({...p,object:e.target.value}))} placeholder="예: 이동식비계 / 프레스 / 지게차 / LPG 가스"
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.navy}}>⚙️ 기인물</div>
+                <div style={{fontSize:11,color:"#94a3b8"}}>입력 완료 시 원인·대책 자동분석</div>
+              </div>
+              <input value={report.object||""} onChange={e=>setReport(p=>({...p,object:e.target.value}))}
+                onBlur={e=>{const updated={...report,object:e.target.value};setReport(updated);autoAnalyzeCauses(updated);}}
+                placeholder="예: 이동식비계 / 프레스 / 지게차 / LPG 가스"
                 style={{width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${report.object?"rgba(245,158,11,0.4)":"#e2e8f0"}`,fontSize:13,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
             </div>
             <div style={{background:"#fff",borderRadius:14,padding:"16px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
-              <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:12}}>🔍 원인 분석</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.navy}}>🔍 원인 분석</div>
+                {autoAnalyzing&&(
+                  <div style={{display:"flex",alignItems:"center",gap:5,background:"rgba(14,165,233,0.08)",border:"1px solid rgba(14,165,233,0.25)",borderRadius:20,padding:"3px 10px"}}>
+                    <div style={{width:7,height:7,borderRadius:"50%",background:C.accent,animation:"pulse 1s ease-in-out infinite"}}/>
+                    <span style={{fontSize:11,color:C.accent,fontWeight:700}}>AI 자동분석 중...</span>
+                  </div>
+                )}
+                {autoAnalyzed&&!autoAnalyzing&&(
+                  <div style={{display:"flex",alignItems:"center",gap:4,background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.3)",borderRadius:20,padding:"3px 10px"}}>
+                    <span style={{fontSize:13}}>✅</span>
+                    <span style={{fontSize:11,color:C.green,fontWeight:700}}>자동분석 완료</span>
+                  </div>
+                )}
+              </div>
               {[
-                {key:"directCause",label:"직접 원인",placeholder:"예: 발판 결속 불량 / 방호장치 미설치 / 안전대 미착용",color:C.red},
-                {key:"indirectCause",label:"간접 원인 (관리적)",placeholder:"예: 작업 전 점검 미실시 / 감독 소홀 / 교육 부족",color:C.amber},
-                {key:"damage",label:"피해 현황",placeholder:"예: 요추 골절 1명 / 병원 이송 / 휴업 4주 예상",color:C.slate},
+                {key:"directCause",label:"직접 원인",placeholder:"예: 발판 결속 불량 / 방호장치 미설치 / 안전대 미착용\n(기인물 입력 후 자동 분석됩니다)",color:C.red,rows:3},
+                {key:"indirectCause",label:"간접 원인 (관리적)",placeholder:"예: 작업 전 점검 미실시 / 감독 소홀 / 교육 부족\n(기인물 입력 후 자동 분석됩니다)",color:C.amber,rows:3},
+                {key:"damage",label:"피해 현황",placeholder:"예: 요추 골절 1명 / 병원 이송 / 휴업 4주 예상",color:C.slate,rows:2},
               ].map(f=>(
                 <div key={f.key} style={{marginBottom:10}}>
-                  <label style={{fontSize:12,fontWeight:700,color:f.color,display:"block",marginBottom:4}}>{f.label}</label>
-                  <input value={report[f.key]||""} onChange={e=>setReport(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder}
-                    style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1.5px solid ${report[f.key]?f.color+"30":"#e2e8f0"}`,fontSize:12,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <label style={{fontSize:12,fontWeight:700,color:f.color}}>{f.label}</label>
+                    {autoAnalyzing&&(f.key==="directCause"||f.key==="indirectCause")&&(
+                      <span style={{fontSize:10,color:C.accent,fontWeight:600,animation:"pulse 1s ease-in-out infinite"}}>분석 중...</span>
+                    )}
+                    {autoAnalyzed&&!autoAnalyzing&&(f.key==="directCause"||f.key==="indirectCause")&&report[f.key]&&(
+                      <span style={{fontSize:10,color:C.green,fontWeight:600,background:"rgba(34,197,94,0.1)",padding:"1px 6px",borderRadius:6}}>AI 자동입력</span>
+                    )}
+                  </div>
+                  <textarea value={report[f.key]||""} onChange={e=>setReport(p=>({...p,[f.key]:e.target.value}))}
+                    placeholder={f.placeholder} rows={f.rows}
+                    style={{width:"100%",padding:"9px 11px",borderRadius:9,
+                      border:`1.5px solid ${autoAnalyzed&&!autoAnalyzing&&(f.key==="directCause"||f.key==="indirectCause")&&report[f.key]?"rgba(34,197,94,0.35)":report[f.key]?f.color+"30":"#e2e8f0"}`,
+                      fontSize:12,color:C.navy,outline:"none",
+                      background:autoAnalyzed&&!autoAnalyzing&&(f.key==="directCause"||f.key==="indirectCause")&&report[f.key]?"rgba(34,197,94,0.02)":"#f8fafc",
+                      boxSizing:"border-box",resize:"vertical",lineHeight:1.6,fontFamily:"'Noto Sans KR',sans-serif"}}/>
                 </div>
               ))}
             </div>
             <div style={{background:"#fff",borderRadius:14,padding:"16px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
-              <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:10}}>✅ 개선대책</div>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.navy}}>✅ 개선대책</div>
+                {autoAnalyzing&&<span style={{fontSize:10,color:C.accent,fontWeight:600,animation:"pulse 1s ease-in-out infinite"}}>분석 중...</span>}
+                {autoAnalyzed&&!autoAnalyzing&&report.improvement&&(
+                  <span style={{fontSize:10,color:C.green,fontWeight:600,background:"rgba(34,197,94,0.1)",padding:"1px 6px",borderRadius:6}}>AI 자동입력</span>
+                )}
+              </div>
               <textarea value={report.improvement||""} onChange={e=>setReport(p=>({...p,improvement:e.target.value}))}
-                placeholder={"예:\n1. 작업 전 비계 점검 의무화\n2. 안전대 부착설비 설치\n3. 관리감독자 상주"}
-                rows={3} style={{width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${report.improvement?"rgba(34,197,94,0.4)":"#e2e8f0"}`,fontSize:12,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box",resize:"vertical",lineHeight:1.6,fontFamily:"'Noto Sans KR',sans-serif"}}/>
+                placeholder={"예:\n1. 작업 전 비계 점검 의무화\n2. 안전대 부착설비 설치\n3. 관리감독자 상주\n(기인물 입력 후 자동 분석됩니다)"}
+                rows={4} style={{width:"100%",padding:"9px 12px",borderRadius:9,
+                  border:`1.5px solid ${autoAnalyzed&&!autoAnalyzing&&report.improvement?"rgba(34,197,94,0.4)":report.improvement?"rgba(34,197,94,0.4)":"#e2e8f0"}`,
+                  fontSize:12,color:C.navy,outline:"none",
+                  background:autoAnalyzed&&!autoAnalyzing&&report.improvement?"rgba(34,197,94,0.02)":"#f8fafc",
+                  boxSizing:"border-box",resize:"vertical",lineHeight:1.6,fontFamily:"'Noto Sans KR',sans-serif"}}/>
             </div>
             <button onClick={generateAI} disabled={aiLoading} style={{width:"100%",padding:"14px",background:aiLoading?"rgba(15,38,64,0.3)":`linear-gradient(135deg,${C.navy},${C.blue})`,border:"none",borderRadius:13,color:"#fff",fontSize:14,fontWeight:700,cursor:aiLoading?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
               {aiLoading?"⏳ AI 보고서 작성 중...":"🤖 AI 보고서 자동완성"}
@@ -1186,4 +1269,65 @@ export default function App() {
                                 <span style={{fontSize:11,fontWeight:700,color:C.accent}}>추가 시나리오 {idx+1}</span>
                                 <button onClick={()=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).filter(e=>e.id!==es.id)}))} style={{background:"none",border:"none",color:"#94a3b8",fontSize:15,cursor:"pointer"}}>×</button>
                               </div>
-                              {[{field:"scenario",label:"작업
+                              {[{field:"scenario",label:"작업상황→위험요인→재해유형",placeholder:"예: 야간 전기작업→잔류전압→감전"},{field:"risk",label:"가능성×중대성",placeholder:"예: 가능성 중(2)×중대성 상(3)=위험성 6→허용불가"},{field:"measure",label:"필요 조치",placeholder:"예: 전원 차단 확인, 절연장갑 착용"}].map(row=>(
+                                <div key={row.field} style={{marginBottom:6}}>
+                                  <label style={{fontSize:11,fontWeight:700,color:"#374151",display:"block",marginBottom:2}}>{row.label}</label>
+                                  <input value={es[row.field]||""} onChange={e=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).map(s=>s.id===es.id?{...s,[row.field]:e.target.value}:s)}))} placeholder={row.placeholder} style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1.5px solid ${C.accent}18`,fontSize:12,color:C.navy,outline:"none",background:"#fff",boxSizing:"border-box"}}/>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={f.key} style={{marginBottom:10}}>
+                      <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>{f.label}</label>
+                      <input value={stepData[f.key]||""} onChange={e=>setStepData(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:13,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={async()=>{
+                if(isStep1){setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);}
+                const extras=(stepData.extraScenarios||[]).filter(e=>e.scenario);
+                let finalData=stepData;
+                if(extras.length>0){
+                  const lines=extras.map((e,i)=>[`${i+1}. ${e.scenario}`,e.risk?`   위험성: ${e.risk}`:"",e.measure?`   조치: ${e.measure}`:""].filter(Boolean).join("\n")).join("\n");
+                  finalData={...stepData,hazards:(stepData.hazards||"")+"\n\n【추가 시나리오】\n"+lines};
+                  setStepData(finalData);
+                }
+                setScreen("step-result");
+                trackAction("ai-generate");
+                trackAction(`step-${activeStep.id}`);
+                await callAI(activeStep.prompt,finalData);
+                setCompletedSteps(prev=>prev.includes(activeStep.id)?prev:[...prev,activeStep.id]);
+              }} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+                🤖 AI 문서 자동 작성
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 시나리오 모달 */}
+        {showScenario&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100}} onClick={()=>setShowScenario(false)}>
+            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 36px",width:"100%",maxWidth:560}} onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:15,fontWeight:800,color:C.navy,marginBottom:14}}>🏭 업종 선택</div>
+              {Object.entries(INDUSTRY_SCENARIOS).map(([name,sc])=>(
+                <button key={name} onClick={()=>applyScenario(name)} style={{width:"100%",background:"#f8fafc",border:"2px solid #e2e8f0",borderRadius:11,padding:"11px 13px",textAlign:"left",cursor:"pointer",marginBottom:8}}>
+                  <div style={{fontSize:14,fontWeight:700,color:C.navy}}>{name}</div>
+                  <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{sc.hazards.slice(0,4).join(" · ")}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {showProfileModal&&<ProfileModal baseInfo={baseInfo} setBaseInfo={setBaseInfo} onClose={async()=>{setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);setShowProfileModal(false);}}/>}
+      </div>
+    );
+  }
+
+  return null;
+}
