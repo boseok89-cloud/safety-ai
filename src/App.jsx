@@ -201,6 +201,144 @@ function StepResultScreen({ activeStep, result, loading, results, baseInfo, setS
   );
 }
 
+// ── TbmFormModal ─────────────────────────────────────────────────────────
+function TbmFormModal({ baseInfo, results, completedSteps, onClose, onSave }) {
+  const today = new Date().toLocaleDateString("ko-KR");
+  const [form, setForm] = useState({
+    id: Date.now(),
+    date: today,
+    workArea: "",
+    workContent: "",
+    attendees: "",
+    keyHazards: "",
+    measures: "",
+    special: "",
+  });
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // 위험성평가 결과에서 핵심 위험요인 추출
+  const autoFillFromEval = () => {
+    const step2Result = results[2] || "";
+    const step4Result = results[4] || "";
+    const hazardText = step2Result.slice(0, 400) || "위험성평가 결과 없음";
+    const measureText = step4Result.slice(0, 400) || "감소대책 결과 없음";
+    setForm(p => ({
+      ...p,
+      keyHazards: hazardText,
+      measures: measureText,
+    }));
+  };
+
+  const generateAI = async () => {
+    setAiLoading(true);
+    const info = [
+      `사업장: ${baseInfo.company||"미입력"} / 업종: ${baseInfo.industry||"미입력"}`,
+      `작업장소: ${form.workArea||"-"}`,
+      `작업내용: ${form.workContent||"-"}`,
+      `참석인원: ${form.attendees||"-"}명`,
+      `핵심위험요인: ${form.keyHazards||results[2]?.slice(0,200)||"-"}`,
+      `안전조치: ${form.measures||results[4]?.slice(0,200)||"-"}`,
+    ].join("\n");
+    try {
+      const res = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-sonnet-4-6",max_tokens:800,
+        system:"산업안전 TBM(Tool Box Meeting, 작업 전 안전점검회의) 회의록을 작성하세요. 핵심 위험요인 3~5가지와 각각의 안전조치사항을 간결하고 현장에서 바로 활용할 수 있게 한국어로 작성하세요.",
+        messages:[{role:"user",content:`다음 정보로 TBM 회의록 핵심내용을 작성해주세요:
+
+${info}`}]
+      })});
+      const d = await res.json();
+      const text = d.content?.map(b=>b.text||"").join("")||"오류가 발생했습니다.";
+      setForm(p=>({...p, keyHazards:text.slice(0,500), measures:text.slice(500,900)||p.measures}));
+    } catch { alert("오류가 발생했습니다."); }
+    finally { setAiLoading(false); }
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200}} onClick={onClose}>
+      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"0 0 36px",width:"100%",maxWidth:560,maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        {/* 헤더 */}
+        <div style={{background:`linear-gradient(135deg,${C.accent},#0284c7)`,borderRadius:"20px 20px 0 0",padding:"16px",position:"sticky",top:0,zIndex:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{color:"#fff",fontSize:15,fontWeight:800}}>📋 TBM 회의록 작성</div>
+            <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginTop:2}}>작업 전 안전점검회의</div>
+          </div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:8,padding:"6px 11px",color:"#fff",fontSize:13,cursor:"pointer"}}>✕</button>
+        </div>
+
+        <div style={{padding:"16px"}}>
+          {/* 기본 정보 */}
+          <div style={{background:"#fff",borderRadius:12,padding:"14px",marginBottom:12,border:"1px solid #e2e8f0"}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:10}}>📌 기본 정보</div>
+            {[
+              {key:"date",label:"회의 일자",placeholder:"예: 2026-05-27"},
+              {key:"workArea",label:"작업 장소",placeholder:"예: 3층 외벽 비계 구간"},
+              {key:"workContent",label:"작업 내용",placeholder:"예: 거푸집 설치 및 철근 배근 작업"},
+              {key:"attendees",label:"참석 인원 수",placeholder:"예: 8"},
+            ].map(f=>(
+              <div key={f.key} style={{marginBottom:9}}>
+                <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:3}}>{f.label}</label>
+                <input value={form[f.key]||""} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder}
+                  style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1.5px solid ${form[f.key]?"rgba(14,165,233,0.4)":"#e2e8f0"}`,fontSize:12,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+              </div>
+            ))}
+          </div>
+
+          {/* 위험요인 & 안전조치 */}
+          <div style={{background:"#fff",borderRadius:12,padding:"14px",marginBottom:12,border:"1px solid #e2e8f0"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.navy}}>⚠️ 핵심 위험요인 & 안전조치</div>
+              <div style={{display:"flex",gap:5}}>
+                {completedSteps.length>0&&(
+                  <button onClick={autoFillFromEval} style={{padding:"4px 9px",background:"rgba(34,197,94,0.1)",border:`1px solid ${C.green}30`,borderRadius:7,color:C.green,fontSize:10,fontWeight:700,cursor:"pointer"}}>📋 평가 불러오기</button>
+                )}
+                <button onClick={generateAI} disabled={aiLoading} style={{padding:"4px 9px",background:`rgba(14,165,233,0.1)`,border:`1px solid ${C.accent}30`,borderRadius:7,color:C.accent,fontSize:10,fontWeight:700,cursor:"pointer"}}>
+                  {aiLoading?"⏳ 생성중...":"🤖 AI 자동생성"}
+                </button>
+              </div>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:12,fontWeight:700,color:C.red,display:"block",marginBottom:3}}>핵심 위험요인</label>
+              <textarea value={form.keyHazards||""} onChange={e=>setForm(p=>({...p,keyHazards:e.target.value}))}
+                placeholder={"예:\n1. 고소작업 중 추락 위험\n2. 중장비 협착 위험\n3. 낙하물 위험"}
+                rows={4} style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1.5px solid ${form.keyHazards?"rgba(239,68,68,0.3)":"#e2e8f0"}`,fontSize:12,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box",resize:"vertical",lineHeight:1.6,fontFamily:"'Noto Sans KR',sans-serif"}}/>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:12,fontWeight:700,color:C.green,display:"block",marginBottom:3}}>안전조치사항</label>
+              <textarea value={form.measures||""} onChange={e=>setForm(p=>({...p,measures:e.target.value}))}
+                placeholder={"예:\n1. 안전대 착용 및 안전대 부착설비 확인\n2. 작업반경 내 출입금지\n3. 안전모·안전화 착용"}
+                rows={4} style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1.5px solid ${form.measures?"rgba(34,197,94,0.3)":"#e2e8f0"}`,fontSize:12,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box",resize:"vertical",lineHeight:1.6,fontFamily:"'Noto Sans KR',sans-serif"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:12,fontWeight:700,color:C.amber,display:"block",marginBottom:3}}>특별 지시사항</label>
+              <textarea value={form.special||""} onChange={e=>setForm(p=>({...p,special:e.target.value}))}
+                placeholder="예: 오늘 강풍 예보 있음 - 고소작업 시 특별 주의 / 신규 장비 투입"
+                rows={2} style={{width:"100%",padding:"9px 11px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:12,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box",resize:"vertical",lineHeight:1.6,fontFamily:"'Noto Sans KR',sans-serif"}}/>
+            </div>
+          </div>
+
+          {/* 저장 & PDF 버튼 */}
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>{
+              if(!form.workContent){alert("작업 내용은 필수입니다");return;}
+              onSave(form);
+            }} style={{flex:1,padding:"13px",background:`linear-gradient(135deg,${C.accent},#0284c7)`,border:"none",borderRadius:11,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 저장</button>
+            <button onClick={()=>{
+              if(!form.workContent){alert("작업 내용을 먼저 입력하세요");return;}
+              const printContent=`<html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;padding:20px;font-size:13px;}h2{text-align:center;border-bottom:2px solid #000;padding-bottom:8px;}table{width:100%;border-collapse:collapse;margin-top:12px;}td,th{border:1px solid #333;padding:8px 10px;vertical-align:top;}th{background:#f0f0f0;font-weight:700;width:25%;}.hazard{background:#fff3f3;}.measure{background:#f0fff4;}.footer{margin-top:20px;border-top:1px solid #ccc;padding-top:10px;font-size:11px;color:#666;}</style></head><body><h2>📋 TBM (작업 전 안전점검회의) 회의록</h2><table><tr><th>작성일</th><td>${form.date}</td><th>참석인원</th><td>${form.attendees}명</td></tr><tr><th>사업장</th><td>${baseInfo.company||"-"}</td><th>작업장소</th><td>${form.workArea||"-"}</td></tr><tr><th>작업내용</th><td colspan="3">${form.workContent||"-"}</td></tr><tr><th class="hazard">핵심 위험요인</th><td colspan="3" class="hazard">${(form.keyHazards||"-").replace(/\n/g,"<br>")}</td></tr><tr><th class="measure">안전조치사항</th><td colspan="3" class="measure">${(form.measures||"-").replace(/\n/g,"<br>")}</td></tr><tr><th>특별 지시사항</th><td colspan="3">${(form.special||"-").replace(/\n/g,"<br>")}</td></tr><tr><th>서명</th><td colspan="3" style="height:60px;">관리감독자: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (인)</td></tr></table><div class="footer">※ 산업안전보건법 제36조에 의거 위험성평가 결과를 근로자에게 주지시키기 위해 작성되었습니다.</div></body></html>`;
+              const w=window.open("","_blank","width=800,height=600");
+              w.document.write(printContent);
+              w.document.close();
+              w.focus();
+              setTimeout(()=>{w.print();},300);
+            }} style={{flex:1,padding:"13px",background:"linear-gradient(135deg,#7c3aed,#6d28d9)",border:"none",borderRadius:11,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>🖨️ PDF 저장</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ProfileModal ─────────────────────────────────────────────────────────
 function ProfileModal({ baseInfo, setBaseInfo, onClose }) {
   return (
@@ -378,6 +516,8 @@ export default function App() {
   const [sheets, setSheets] = useState([{id:1,workArea:"",workType:"",equipment:"",materials:"",envFactors:"",currentSafety:"",result:"",extraHazards:[]}]);
   const [activeSheetId, setActiveSheetId] = useState(1);
   const [sheetLoading, setSheetLoading] = useState({});
+  const [tbmRecords, setTbmRecords] = useState([]);
+  const [showTbmForm, setShowTbmForm] = useState(false);
 
   useEffect(()=>{
     (async()=>{
@@ -385,6 +525,7 @@ export default function App() {
       const h=await loadStorage("eval-history"); if(h) setEvalHistory(h);
       const t=await loadStorage("selected-template"); if(t){setSelectedTemplate(t);setScreen("home");}
       const ar=await loadStorage("accident-reports"); if(ar) setAccidentReports(ar);
+      const tb=await loadStorage("tbm-records"); if(tb) setTbmRecords(tb);
     })();
   },[]);
 
@@ -622,7 +763,7 @@ export default function App() {
         </div>
         <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 0"}}>
           <div style={{display:"flex",background:"#e2e8f0",borderRadius:11,padding:3,gap:2}}>
-            {[{k:"assessment",l:"📋 평가"},{k:"accident",l:"📝 보고서"},{k:"urgent",l:"🔄 수시"},{k:"siren",l:"🚨 사이렌"}].map(t=>(
+            {[{k:"assessment",l:"📋 평가"},{k:"tbm",l:"📋 TBM"},{k:"accident",l:"📝 보고서"},{k:"urgent",l:"🔄 수시"},{k:"siren",l:"🚨 사이렌"}].map(t=>(
               <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"7px 0",borderRadius:8,border:"none",background:tab===t.k?(t.k==="siren"?C.siren:t.k==="accident"?C.red:"#fff"):"transparent",color:tab===t.k?"#fff":C.slate,fontSize:11,fontWeight:700,cursor:"pointer"}}>{t.l}</button>
             ))}
           </div>
@@ -632,9 +773,22 @@ export default function App() {
         {tab==="assessment"&&(
           <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 28px"}}>
             {completedSteps.length>0&&(
-              <button onClick={()=>{const t=STEPS.filter(s=>results[s.id]).map(s=>`=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");navigator.clipboard.writeText(t).then(()=>{setGlobalCopied(true);setTimeout(()=>setGlobalCopied(false),2000)});}} style={{width:"100%",padding:"13px",marginBottom:12,background:globalCopied?"linear-gradient(135deg,#166534,#15803d)":"linear-gradient(135deg,#1d4ed8,#3b82f6)",border:"none",borderRadius:13,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <span style={{fontSize:18}}>{globalCopied?"✅":"📋"}</span>{globalCopied?`전체 복사 완료! (${completedSteps.length}/6)`:`전체 내용 복사 (${completedSteps.length}/6 완료)`}
-              </button>
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <button onClick={()=>{const t=STEPS.filter(s=>results[s.id]).map(s=>`=== ${s.icon} STEP ${s.id}: ${s.title} ===\n\n${results[s.id]}`).join("\n\n\n");navigator.clipboard.writeText(t).then(()=>{setGlobalCopied(true);setTimeout(()=>setGlobalCopied(false),2000)});}} style={{flex:1,padding:"13px",background:globalCopied?"linear-gradient(135deg,#166534,#15803d)":"linear-gradient(135deg,#1d4ed8,#3b82f6)",border:"none",borderRadius:13,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <span style={{fontSize:16}}>{globalCopied?"✅":"📋"}</span>{globalCopied?"복사완료":` 전체복사 (${completedSteps.length}/6)`}
+                </button>
+                <button onClick={()=>{
+                  const allText=STEPS.filter(s=>results[s.id]).map(s=>`<h3>${s.icon} STEP ${s.id}: ${s.title}</h3><pre style="white-space:pre-wrap;font-size:12px;line-height:1.8;">${results[s.id]}</pre>`).join("<hr>");
+                  const printContent=`<html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;padding:24px;font-size:13px;}h2{text-align:center;border-bottom:2px solid #0f2640;padding-bottom:8px;color:#0f2640;}h3{color:#1a3a5c;border-left:4px solid #0ea5e9;padding-left:10px;margin-top:24px;}pre{background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;white-space:pre-wrap;}hr{border:none;border-top:1px solid #e2e8f0;margin:20px 0;}.info{display:flex;gap:20px;background:#f0f4f8;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:12px;}</style></head><body><h2>⚠️ 위험성평가 보고서</h2><div class="info"><span>🏢 ${baseInfo.company||"사업장명"}</span><span>🏭 ${baseInfo.industry||"업종"}</span><span>👷 ${baseInfo.workers||"근로자수"}</span><span>📅 ${new Date().toLocaleDateString("ko-KR")}</span></div>${allText}<p style="margin-top:20px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px;">※ AI 초안입니다. 안전관리자가 현장 상황에 맞게 반드시 검토·수정 후 사용하세요.</p></body></html>`;
+                  const w=window.open("","_blank","width=900,height=700");
+                  w.document.write(printContent);
+                  w.document.close();
+                  w.focus();
+                  setTimeout(()=>{w.print();},300);
+                }} style={{flex:1,padding:"13px",background:"linear-gradient(135deg,#7c3aed,#6d28d9)",border:"none",borderRadius:13,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <span style={{fontSize:16}}>🖨️</span> PDF 저장
+                </button>
+              </div>
             )}
             {linkedSirenCases.length>0&&(
               <div style={{background:"rgba(220,38,38,0.07)",border:"2px solid rgba(220,38,38,0.2)",borderRadius:13,padding:"12px 14px",marginBottom:12}}>
@@ -690,6 +844,86 @@ export default function App() {
                   {!r.evalLinked&&<button onClick={()=>injectAccidentToEval(r)} style={{flex:1,padding:"8px",background:`linear-gradient(135deg,${C.accent},${C.accent}cc)`,border:"none",borderRadius:8,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>🔗 수시평가 연계</button>}
                   <button onClick={()=>deleteAccidentReport(r.id)} style={{padding:"8px 11px",background:"none",border:"1px solid rgba(239,68,68,0.25)",borderRadius:8,color:C.red,fontSize:12,cursor:"pointer"}}>🗑️</button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── TBM 회의록 탭 ── */}
+        {tab==="tbm"&&(
+          <div style={{maxWidth:560,margin:"0 auto",padding:"10px 14px 28px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:800,color:C.navy}}>📋 TBM 회의록</div>
+                <div style={{fontSize:11,color:C.slate,marginTop:2}}>작업 전 안전점검회의 · 위험성평가 기반 자동생성</div>
+              </div>
+              <button onClick={()=>setShowTbmForm(true)} style={{padding:"8px 14px",background:`linear-gradient(135deg,${C.accent},#0284c7)`,border:"none",borderRadius:10,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ TBM 작성</button>
+            </div>
+
+            {/* 위험성평가 연계 안내 */}
+            {completedSteps.length>0&&(
+              <div style={{background:`rgba(14,165,233,0.07)`,border:`1.5px solid ${C.accent}25`,borderRadius:12,padding:"11px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:16}}>🔗</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:700,color:C.accent}}>위험성평가 연계 가능</div>
+                  <div style={{fontSize:11,color:C.slate,marginTop:1}}>완료된 평가 결과를 TBM에 자동 반영할 수 있어요</div>
+                </div>
+              </div>
+            )}
+
+            {tbmRecords.length===0?(
+              <div style={{textAlign:"center",padding:"40px 0",background:"#fff",borderRadius:14,border:"2px dashed #e2e8f0"}}>
+                <div style={{fontSize:36,marginBottom:8}}>📋</div>
+                <div style={{fontSize:13,color:"#94a3b8",fontWeight:600}}>작성된 TBM 회의록이 없어요</div>
+                <div style={{fontSize:11,color:"#cbd5e1",marginTop:4}}>매일 작업 전 TBM을 작성하고 기록하세요</div>
+              </div>
+            ):tbmRecords.slice().reverse().map((tbm,i)=>(
+              <div key={tbm.id} style={{background:"#fff",borderRadius:13,padding:"14px",marginBottom:10,border:`2px solid ${C.accent}15`,borderLeft:`4px solid ${C.accent}`}}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:6}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11,fontWeight:700,color:C.accent}}>{tbm.date}</span>
+                      <span style={{fontSize:11,color:C.slate}}>{tbm.workArea}</span>
+                      <span style={{fontSize:10,color:"#fff",background:C.green,padding:"1px 7px",borderRadius:10,fontWeight:700}}>참석 {tbm.attendees}명</span>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:700,color:C.navy}}>{tbm.workContent||"작업내용 미입력"}</div>
+                  </div>
+                  <button onClick={async()=>{const updated=tbmRecords.filter(t=>t.id!==tbm.id);setTbmRecords(updated);await saveStorage("tbm-records",updated);}} style={{background:"none",border:"none",color:"#94a3b8",fontSize:16,cursor:"pointer",padding:"0 4px"}}>🗑️</button>
+                </div>
+                <div style={{fontSize:12,color:"#64748b",lineHeight:1.5,marginBottom:8}}>{tbm.keyHazards?.slice(0,60)}{(tbm.keyHazards?.length||0)>60?"...":""}</div>
+                <button onClick={()=>{
+                  const printContent = `
+                    <html><head><meta charset="utf-8">
+                    <style>
+                      body{font-family:'맑은 고딕',sans-serif;padding:20px;font-size:13px;}
+                      h2{text-align:center;border-bottom:2px solid #000;padding-bottom:8px;}
+                      table{width:100%;border-collapse:collapse;margin-top:12px;}
+                      td,th{border:1px solid #333;padding:8px 10px;vertical-align:top;}
+                      th{background:#f0f0f0;font-weight:700;width:25%;}
+                      .hazard{background:#fff3f3;} .measure{background:#f0fff4;}
+                      .footer{margin-top:20px;border-top:1px solid #ccc;padding-top:10px;font-size:11px;color:#666;}
+                    </style></head><body>
+                    <h2>📋 TBM (작업 전 안전점검회의) 회의록</h2>
+                    <table>
+                      <tr><th>작성일</th><td>${tbm.date}</td><th>참석인원</th><td>${tbm.attendees}명</td></tr>
+                      <tr><th>사업장</th><td>${baseInfo.company||"-"}</td><th>작업장소</th><td>${tbm.workArea||"-"}</td></tr>
+                      <tr><th>작업내용</th><td colspan="3">${tbm.workContent||"-"}</td></tr>
+                      <tr><th class="hazard">핵심 위험요인</th><td colspan="3" class="hazard">${(tbm.keyHazards||"-").replace(/\n/g,"<br>")}</td></tr>
+                      <tr><th class="measure">안전조치사항</th><td colspan="3" class="measure">${(tbm.measures||"-").replace(/\n/g,"<br>")}</td></tr>
+                      <tr><th>특별 지시사항</th><td colspan="3">${(tbm.special||"-").replace(/\n/g,"<br>")}</td></tr>
+                      <tr><th>서명</th><td colspan="3" style="height:60px;">관리감독자: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (인)</td></tr>
+                    </table>
+                    <div class="footer">※ 본 TBM 회의록은 산업안전보건법 제36조에 의거 위험성평가 결과를 근로자에게 주지시키기 위해 작성되었습니다.</div>
+                    </body></html>
+                  `;
+                  const w=window.open("","_blank","width=800,height=600");
+                  w.document.write(printContent);
+                  w.document.close();
+                  w.focus();
+                  setTimeout(()=>{w.print();},300);
+                }} style={{width:"100%",padding:"9px",background:`linear-gradient(135deg,${C.accent},#0284c7)`,border:"none",borderRadius:9,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                  🖨️ PDF 인쇄 / 저장
+                </button>
               </div>
             ))}
           </div>
@@ -752,6 +986,22 @@ export default function App() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* ── TBM 작성 폼 모달 ── */}
+        {showTbmForm&&(
+          <TbmFormModal
+            baseInfo={baseInfo}
+            results={results}
+            completedSteps={completedSteps}
+            onClose={()=>setShowTbmForm(false)}
+            onSave={async(tbm)=>{
+              const updated=[tbm,...tbmRecords];
+              setTbmRecords(updated);
+              await saveStorage("tbm-records",updated);
+              setShowTbmForm(false);
+            }}
+          />
         )}
 
         {/* 수시평가 연계 모달 */}
@@ -922,58 +1172,4 @@ export default function App() {
                                   <label style={{fontSize:11,fontWeight:700,color:"#374151",display:"block",marginBottom:2}}>{row.label}</label>
                                   <input value={es[row.field]||""} onChange={e=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).map(s=>s.id===es.id?{...s,[row.field]:e.target.value}:s)}))} placeholder={row.placeholder} style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1.5px solid ${C.accent}18`,fontSize:12,color:C.navy,outline:"none",background:"#fff",boxSizing:"border-box"}}/>
                                 </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={f.key} style={{marginBottom:10}}>
-                      <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:4}}>{f.label}</label>
-                      <input value={stepData[f.key]||""} onChange={e=>setStepData(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:13,color:C.navy,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
-                    </div>
-                  );
-                })}
-              </div>
-              <button onClick={async()=>{
-                if(isStep1){setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);}
-                const extras=(stepData.extraScenarios||[]).filter(e=>e.scenario);
-                let finalData=stepData;
-                if(extras.length>0){
-                  const lines=extras.map((e,i)=>[`${i+1}. ${e.scenario}`,e.risk?`   위험성: ${e.risk}`:"",e.measure?`   조치: ${e.measure}`:""].filter(Boolean).join("\n")).join("\n");
-                  finalData={...stepData,hazards:(stepData.hazards||"")+"\n\n【추가 시나리오】\n"+lines};
-                  setStepData(finalData);
-                }
-                setScreen("step-result");
-                await callAI(activeStep.prompt,finalData);
-                setCompletedSteps(prev=>prev.includes(activeStep.id)?prev:[...prev,activeStep.id]);
-              }} style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${stepColor},${stepColor}cc)`,border:"none",borderRadius:13,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
-                🤖 AI 문서 자동 작성
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 시나리오 모달 */}
-        {showScenario&&(
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100}} onClick={()=>setShowScenario(false)}>
-            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 16px 36px",width:"100%",maxWidth:560}} onClick={e=>e.stopPropagation()}>
-              <div style={{fontSize:15,fontWeight:800,color:C.navy,marginBottom:14}}>🏭 업종 선택</div>
-              {Object.entries(INDUSTRY_SCENARIOS).map(([name,sc])=>(
-                <button key={name} onClick={()=>applyScenario(name)} style={{width:"100%",background:"#f8fafc",border:"2px solid #e2e8f0",borderRadius:11,padding:"11px 13px",textAlign:"left",cursor:"pointer",marginBottom:8}}>
-                  <div style={{fontSize:14,fontWeight:700,color:C.navy}}>{name}</div>
-                  <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{sc.hazards.slice(0,4).join(" · ")}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {showProfileModal&&<ProfileModal baseInfo={baseInfo} setBaseInfo={setBaseInfo} onClose={async()=>{setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);setShowProfileModal(false);}}/>}
-      </div>
-    );
-  }
-
-  return null;
-}
+                              ))
