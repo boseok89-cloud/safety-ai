@@ -67,9 +67,9 @@ export default function Admin() {
 
       // 방문 통계
       const today = new Date().toLocaleDateString("ko-KR");
-      const todayVisits = visits.filter(v=>v.date===today).length;
+      const todayVisits = Array.isArray(visits) ? visits.filter(v=>v.date===today).length : 0;
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
-      const weekVisits = visits.filter(v=>new Date(v.ts)>=weekAgo).length;
+      const weekVisits = Array.isArray(visits) ? visits.filter(v=>new Date(v.ts)>=weekAgo).length : 0;
 
       // 날짜별 방문 (최근 7일)
       const dailyMap = {};
@@ -78,7 +78,9 @@ export default function Admin() {
         const key = dt.toLocaleDateString("ko-KR");
         dailyMap[key] = 0;
       }
-      visits.forEach(v=>{ if(dailyMap[v.date]!==undefined) dailyMap[v.date]++; });
+      if (Array.isArray(visits)) {
+        visits.forEach(v=>{ if(dailyMap[v.date]!==undefined) dailyMap[v.date]++; });
+      }
       const dailyVisits = Object.entries(dailyMap).map(([date,count])=>({
         label: date.slice(5), value: count
       }));
@@ -87,8 +89,8 @@ export default function Admin() {
       const featureData = [
         { label:"위험성평가", value: actions["eval"]||0, icon:"📋", color:C.accent },
         { label:"AI 문서생성", value: actions["ai-generate"]||0, icon:"🤖", color:C.purple },
-        { label:"사고보고서", value: accidents.length, icon:"📝", color:C.red },
-        { label:"TBM 회의록", value: tbms.length, icon:"📋", color:C.green },
+        { label:"사고보고서", value: accidents.length || 0, icon:"📝", color:C.red },
+        { label:"TBM 회의록", value: tbms.length || 0, icon:"📋", color:C.green },
         { label:"중대재해 사이렌", value: actions["siren-copy"]||0, icon:"🚨", color:"#dc2626" },
         { label:"수시평가", value: actions["urgent-eval"]||0, icon:"🔄", color:C.amber },
         { label:"PDF 저장", value: actions["pdf-save"]||0, icon:"🖨️", color:"#7c3aed" },
@@ -101,29 +103,31 @@ export default function Admin() {
 
       // 업종 분포
       const industryMap = {};
-      evals.forEach(e=>{
-        const ind = e.industry||"미입력";
-        industryMap[ind] = (industryMap[ind]||0)+1;
-      });
+      if (Array.isArray(evals)) {
+        evals.forEach(e=>{
+          const ind = e.industry||"미입력";
+          industryMap[ind] = (industryMap[ind]||0)+1;
+        });
+      }
       const industryData = Object.entries(industryMap)
         .sort((a,b)=>b[1]-a[1])
         .slice(0,5)
         .map(([label,value])=>({label,value}));
 
       setStats({
-        totalVisits: visits.length,
+        totalVisits: visits.length || 0,
         todayVisits,
         weekVisits,
         dailyVisits,
         featureData,
         stepStats,
         industryData,
-        totalEvals: evals.length,
-        totalAccidents: accidents.length,
-        totalTbms: tbms.length,
-        lastVisit: visits.length>0 ? visits[visits.length-1].date : "-",
+        totalEvals: evals.length || 0,
+        totalAccidents: accidents.length || 0,
+        totalTbms: tbms.length || 0,
+        lastVisit: (Array.isArray(visits) && visits.length>0) ? visits[visits.length-1].date : "-",
         companyProfile: profile,
-        recentEvals: evals.slice(0,5),
+        recentEvals: Array.isArray(evals) ? evals.slice(0,5) : [],
       });
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
