@@ -1173,3 +1173,4 @@ export default function App() {
                                   <input value={es[row.field]||""} onChange={e=>setStepData(p=>({...p,extraScenarios:(p.extraScenarios||[]).map(s=>s.id===es.id?{...s,[row.field]:e.target.value}:s)}))} placeholder={row.placeholder} style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1.5px solid ${C.accent}18`,fontSize:12,color:C.navy,outline:"none",background:"#fff",boxSizing:"border-box"}}/>
                                 </div>
                               ))}
+                           
