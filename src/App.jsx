@@ -413,8 +413,8 @@ function AccidentFullScreen({ baseInfo, onBack, onSave }) {
       `기인물: ${r.object||"-"}`,
     ].join("\n");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({
-        model:"claude-sonnet-4-20250514", max_tokens:800,
+      const res = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-sonnet-4-6", max_tokens:800,
         system:`산업안전 전문가로서 사고 정보를 분석해 아래 3가지만 JSON으로 반환하세요. 반드시 JSON만, 마크다운 없이 반환하세요.
 {"directCause":"직접 원인 (불안전한 행동·상태, 2~4줄)","indirectCause":"간접 원인 - 관리적 결함 (교육·감독·시스템 미흡, 2~3줄)","improvement":"개선대책 (번호 매기기, 3~5가지)"}`,
         messages:[{role:"user",content:`다음 사고 정보로 직접원인, 간접원인, 개선대책을 분석하세요:\n\n${info}`}]
