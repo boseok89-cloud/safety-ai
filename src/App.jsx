@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Admin from "./Admin";
 
 // ── 상수 ──────────────────────────────────────────────────────────────────
 const C = { navy:"#0f2640", blue:"#1a3a5c", accent:"#0ea5e9", green:"#22c55e", amber:"#f59e0b", red:"#ef4444", purple:"#8b5cf6", slate:"#64748b", bg:"#f0f4f8", siren:"#dc2626" };
@@ -623,6 +624,8 @@ export default function App() {
 
   useEffect(()=>{
     trackVisit(); // 방문 기록
+    // /admin URL 접근 시 관리자 화면으로
+    if(window.location.pathname==="/admin") { setScreen("admin"); return; }
     (async()=>{
       const p=await loadStorage("company-profile"); if(p){setBaseInfo(p);setBaseConfirmed(true);}
       const h=await loadStorage("eval-history"); if(h) setEvalHistory(h);
@@ -761,6 +764,9 @@ export default function App() {
       {showProfileModal&&<ProfileModal baseInfo={baseInfo} setBaseInfo={setBaseInfo} onClose={async()=>{setBaseConfirmed(true);await saveStorage("company-profile",baseInfo);setShowProfileModal(false);}}/>}
     </div>
   );
+
+  // ── 관리자 화면 ──────────────────────────────────────────────────────────
+  if(screen==="admin") return <Admin />;
 
   // ── 사고보고서 작성 화면 ──────────────────────────────────────────────
   if(screen==="accident-form") return (
