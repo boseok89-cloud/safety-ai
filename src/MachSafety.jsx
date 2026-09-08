@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import EXAM_BANK from "./ExamBank";
+import { EXAM_BANK } from "./ExamBank";
 
 const C = {
   bg:"#0a0e1a", surface:"#111827", card:"#1a2235", border:"#1e3a5f",
