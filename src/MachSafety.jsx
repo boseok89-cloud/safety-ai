@@ -630,7 +630,7 @@ async function gradeAnswer(topic, answer) {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
-      model:"claude-sonnet-4-20250514", max_tokens:800,
+      model:"claude-sonnet-5-5", max_tokens:800,
       system:`당신은 기계안전기술사 실제 시험 채점위원입니다. 실제 국가기술자격 기술사 시험 수준으로 엄격하게 채점하세요.
 채점 기준: 개요-본론-결론 구조 여부, 핵심키워드 포함도, 기술적 정확성, 실무 적용성, 답안 분량 적절성(서술형 특성상 구체적 수치·기준 인용 여부 중요).
 반드시 JSON만 반환:
@@ -652,7 +652,7 @@ async function generateModel(topic) {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
-      model:"claude-sonnet-4-20250514", max_tokens:1200,
+      model:"claude-sonnet-5-5", max_tokens:1200,
       system:"당신은 기계안전기술사 시험 전문 강사입니다. 실제 합격 답안 스타일로 작성합니다: 1.개요(정의·배경 간결하게) 2.본론(번호매기기·표 활용·수치기준 명시) 3.결론(실무 시사점) 구조를 반드시 지키고, 산업안전보건법령·KOSHA GUIDE 등 근거를 가능한 인용하세요. 마지막은 항상 '끝.'으로 마무리하세요.",
       messages:[{role:"user",content:`기계안전기술사 시험 문제: "${topic.title}"에 대한 모범답안을 작성해주세요.
 핵심키워드(${topic.keywords.join(", ")})를 반드시 포함해서 700~1000자로 작성. 실제 시험 답안지에 쓰는 것처럼 구체적 수치·기준·법령을 포함하세요.${examContext}`}]
