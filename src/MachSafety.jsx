@@ -628,7 +628,7 @@ async function gradeAnswer(topic, answer) {
     : "";
   const res = await fetch("/api/chat", {
     method:"POST",
-    headers:{"Content-Type":"application/json",:"2023-06-01",:"true"},
+    headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
       model:"claude-sonnet-4-20250514", max_tokens:800,
       system:`당신은 기계안전기술사 실제 시험 채점위원입니다. 실제 국가기술자격 기술사 시험 수준으로 엄격하게 채점하세요.
@@ -650,7 +650,7 @@ async function generateModel(topic) {
     : "";
   const res = await fetch("/api/chat", {
     method:"POST",
-    headers:{"Content-Type":"application/json",:"2023-06-01",:"true"},
+    headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
       model:"claude-sonnet-4-20250514", max_tokens:1200,
       system:"당신은 기계안전기술사 시험 전문 강사입니다. 실제 합격 답안 스타일로 작성합니다: 1.개요(정의·배경 간결하게) 2.본론(번호매기기·표 활용·수치기준 명시) 3.결론(실무 시사점) 구조를 반드시 지키고, 산업안전보건법령·KOSHA GUIDE 등 근거를 가능한 인용하세요. 마지막은 항상 '끝.'으로 마무리하세요.",
