@@ -1,4 +1,4 @@
-import { EXAM_BANK } from "./ExamBank";
+import { useState, useEffect } from "react";
 import { EXAM_BANK } from "./ExamBank";
 import AnswerView from "./AnswerView";
 import { ANSWER_BANK } from "./answerBank";
