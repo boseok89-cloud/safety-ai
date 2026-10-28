@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
 import { EXAM_BANK } from "./ExamBank";
+import { EXAM_BANK } from "./ExamBank";
+import AnswerView from "./AnswerView";
+import { ANSWER_BANK } from "./answerBank";
 
 const C = {
   bg:"#0a0e1a", surface:"#111827", card:"#1a2235", border:"#1e3a5f",
@@ -620,46 +622,40 @@ function findRelatedExams(topic, limit=3) {
   return scored.slice(0, limit);
 }
 
-// ── AI 함수 ────────────────────────────────────────────────
-async function gradeAnswer(topic, answer) {
-  const related = findRelatedExams(topic, 2);
-  const examContext = related.length>0
-    ? `\n\n[참고: 실제 기출 유사문제]\n${related.map(r=>`${r.round}회: ${r.q}`).join("\n")}`
-    : "";
-  const res = await fetch("/api/chat", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      model:"claude-sonnet-5-5", max_tokens:800,
-      system:`당신은 기계안전기술사 실제 시험 채점위원입니다. 실제 국가기술자격 기술사 시험 수준으로 엄격하게 채점하세요.
-채점 기준: 개요-본론-결론 구조 여부, 핵심키워드 포함도, 기술적 정확성, 실무 적용성, 답안 분량 적절성(서술형 특성상 구체적 수치·기준 인용 여부 중요).
-반드시 JSON만 반환:
-{"score":0~100,"grade":"A/B/C/D/F","strengths":"잘된점(1~2줄)","improvements":"보완점(2~3줄, 실제 시험에서 감점 요인 중심)","keywordsMissed":["키워드1"]}`,
-      messages:[{role:"user",content:`문제:${topic.title}\n핵심키워드:${topic.keywords.join(", ")}${examContext}\n\n수험생 답안:\n${answer}`}]
-    })
-  });
-  const d = await res.json();
-  const raw = d.content?.map(b=>b.text||"").join("")||"";
-  return JSON.parse(raw.replace(/```json|```/g,"").trim());
+// ── 답안은행 연결 / 채점 (규칙 기반, AI 호출 없음 = 비용 0) ──
+function findAnswerKey(topic) {
+  return Object.keys(ANSWER_BANK).find(k => ANSWER_BANK[k].title === topic.title) || null;
 }
 
-async function generateModel(topic) {
-  const related = findRelatedExams(topic, 3);
-  const examContext = related.length>0
-    ? `\n\n실제 기출 유사문제 참고(출제 스타일 반영):\n${related.map(r=>`${r.round}회: ${r.q}`).join("\n")}`
-    : "";
-  const res = await fetch("/api/chat", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      model:"claude-sonnet-5-5", max_tokens:1200,
-      system:"당신은 기계안전기술사 시험 전문 강사입니다. 실제 합격 답안 스타일로 작성합니다: 1.개요(정의·배경 간결하게) 2.본론(번호매기기·표 활용·수치기준 명시) 3.결론(실무 시사점) 구조를 반드시 지키고, 산업안전보건법령·KOSHA GUIDE 등 근거를 가능한 인용하세요. 마지막은 항상 '끝.'으로 마무리하세요.",
-      messages:[{role:"user",content:`기계안전기술사 시험 문제: "${topic.title}"에 대한 모범답안을 작성해주세요.
-핵심키워드(${topic.keywords.join(", ")})를 반드시 포함해서 700~1000자로 작성. 실제 시험 답안지에 쓰는 것처럼 구체적 수치·기준·법령을 포함하세요.${examContext}`}]
-    })
+function gradeAnswer(topic, answer) {
+  const norm = s => s.replace(/\s/g, "");
+  const text = norm(answer);
+  const missed = topic.keywords.filter(kw => {
+    const cleaned = kw.replace(/\([^)]*\)/g, "").trim();
+    const cands = [cleaned, cleaned.split(/[-:=]/)[0].trim()].filter(c => c.length >= 2);
+    return !cands.some(c => text.includes(norm(c)));
   });
-  const d = await res.json();
-  return d.content?.map(b=>b.text||"").join("")||"";
+  const hit = topic.keywords.length - missed.length;
+  const kwScore = Math.round((hit / topic.keywords.length) * 60);
+  const hasIntro = /개요|서론|정의/.test(answer);
+  const hasBody = /본론|\d\)|\d\./.test(answer);
+  const hasEnd = /결론/.test(answer);
+  const structScore = (hasIntro ? 7 : 0) + (hasBody ? 6 : 0) + (hasEnd ? 7 : 0);
+  const lenScore = Math.min(20, Math.round((answer.length / 700) * 20));
+  const score = kwScore + structScore + lenScore;
+  const grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+  const tips = [];
+  if (!hasIntro) tips.push("개요(정의·배경)가 없습니다.");
+  if (!hasBody) tips.push("본론을 번호(1) 2))로 구분하세요.");
+  if (!hasEnd) tips.push("결론(실무 시사점)이 없습니다.");
+  if (answer.length < 500) tips.push(`분량이 짧습니다(${answer.length}자, 권장 700자 이상).`);
+  if (missed.length) tips.push(`누락 키워드 ${missed.length}개를 보강하세요.`);
+  return {
+    score, grade,
+    strengths: `키워드 ${hit}/${topic.keywords.length}개 포함 · ${answer.length}자`,
+    improvements: tips.length ? tips.join(" ") : "구조·키워드·분량 기준 충족. 수치·법령 근거를 원문과 대조하세요.",
+    keywordsMissed: missed,
+  };
 }
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────
@@ -669,10 +665,8 @@ export default function MachSafety({ onBack }) {
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [answer, setAnswer] = useState("");
-  const [grading, setGrading] = useState(false);
   const [gradeResult, setGradeResult] = useState(null);
   const [modelAnswer, setModelAnswer] = useState("");
-  const [modelLoading, setModelLoading] = useState(false);
   const [progress, setProgress] = useState({});
   const [searchTxt, setSearchTxt] = useState("");
   const [showOnlyPending, setShowOnlyPending] = useState(false);
@@ -698,25 +692,18 @@ export default function MachSafety({ onBack }) {
   const doneCount = Object.keys(progress).length;
   const totalCount = TOPICS.length;
 
-  const handleGrade = async () => {
+  const handleGrade = () => {
     if (!answer.trim()) return;
-    setGrading(true); setGradeResult(null);
-    try { const r = await gradeAnswer(selectedTopic, answer); setGradeResult(r); }
-    catch { setGradeResult({score:0,grade:"오류",strengths:"AI 연결 오류",improvements:"다시 시도해주세요",keywordsMissed:[]}); }
-    finally { setGrading(false); }
+    setGradeResult(gradeAnswer(selectedTopic, answer));
   };
 
-  const handleModel = async () => {
-    setModelLoading(true); setModelAnswer("");
-    try { const m = await generateModel(selectedTopic); setModelAnswer(m); }
-    catch { setModelAnswer("AI 연결 오류. 다시 시도해주세요."); }
-    finally { setModelLoading(false); }
+  const handleModel = () => {
+    setModelAnswer(prev => (prev ? "" : "open"));
   };
 
   // ── 홈 ────────────────────────────────────────────────────
   if (screen === "home") return (
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
-      {/* 헤더 */}
       <div style={{background:"linear-gradient(135deg,#0f1f3d,#1a2f5c)",padding:"20px 16px 24px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{maxWidth:600,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
@@ -724,13 +711,12 @@ export default function MachSafety({ onBack }) {
             <div style={{fontSize:26}}>⚙️</div>
             <div style={{flex:1}}>
               <div style={{fontSize:16,fontWeight:900,color:"#fff"}}>기계안전기술사</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>200문제 · 실제기출{EXAM_BANK.length}개 · AI 모의채점</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>200문제 · 실제기출{EXAM_BANK.length}개 · 모의채점</div>
             </div>
             <div style={{background:`${C.gold}20`,border:`1px solid ${C.gold}40`,borderRadius:8,padding:"4px 10px"}}>
               <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{doneCount}/{totalCount}</span>
             </div>
           </div>
-          {/* 진도바 */}
           <div style={{background:"rgba(255,255,255,0.1)",borderRadius:99,height:5}}>
             <div style={{width:`${(doneCount/totalCount)*100}%`,background:`linear-gradient(90deg,${C.accent},${C.gold})`,borderRadius:99,height:"100%",transition:"width 0.5s"}}/>
           </div>
@@ -738,7 +724,6 @@ export default function MachSafety({ onBack }) {
       </div>
 
       <div style={{maxWidth:600,margin:"0 auto",padding:"14px 14px 40px"}}>
-        {/* 출제빈도 TOP5 */}
         <div style={{background:C.card,borderRadius:16,padding:"14px",marginBottom:12,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:12,fontWeight:800,color:C.gold,marginBottom:10}}>🔥 출제빈도 TOP 5</div>
           {topFreq.map((t,i)=>(
@@ -759,14 +744,13 @@ export default function MachSafety({ onBack }) {
           ))}
         </div>
 
-        {/* 검색 + 필터 */}
         <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
           style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
 
         <div style={{display:"flex",gap:5,marginBottom:10,overflowX:"auto",paddingBottom:3}}>
           {CATEGORIES.map(cat=>(
             <button key={cat} onClick={()=>setSelectedCat(cat)}
-              style={{padding:"5px 12px",borderRadius:20,border:"none",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,
+              style={{padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,
                 background:selectedCat===cat?(CAT_COLORS[cat]||C.accent):C.card,
                 color:selectedCat===cat?"#fff":C.muted,
                 border:`1px solid ${selectedCat===cat?(CAT_COLORS[cat]||C.accent):C.border}`}}>
@@ -782,7 +766,6 @@ export default function MachSafety({ onBack }) {
 
         <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{filtered.length}개 문제</div>
 
-        {/* 문제 목록 */}
         {filtered.map(t=>(
           <div key={t.id} onClick={()=>{setSelectedTopic(t);setScreen("card");setCardFlipped(false);}}
             style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:7,cursor:"pointer",
@@ -815,14 +798,12 @@ export default function MachSafety({ onBack }) {
       </div>
 
       <div style={{maxWidth:600,margin:"0 auto",padding:"18px 14px"}}>
-        {/* 현장 SVG 그림 */}
         {selectedTopic.svg && SVG_SCENES[selectedTopic.svg] && (
           <div style={{marginBottom:14,borderRadius:16,overflow:"hidden",border:`1px solid ${C.border}`}}>
             {SVG_SCENES[selectedTopic.svg]}
           </div>
         )}
 
-        {/* 플래시카드 */}
         <div onClick={()=>setCardFlipped(p=>!p)}
           style={{background:cardFlipped?"linear-gradient(135deg,#0f3460,#1a5276)":`linear-gradient(135deg,${C.card},#1e3a5f)`,
             borderRadius:18,padding:"28px 22px",minHeight:200,cursor:"pointer",
@@ -863,7 +844,6 @@ export default function MachSafety({ onBack }) {
           </button>
         </div>
 
-        {/* 실제 기출 이력 */}
         {(() => {
           const related = findRelatedExams(selectedTopic, 4);
           if (related.length === 0) return null;
@@ -883,7 +863,7 @@ export default function MachSafety({ onBack }) {
     </div>
   );
 
-  // ── 답안 작성 + AI 채점 ────────────────────────────────────
+  // ── 답안 작성 + 채점 ───────────────────────────────────────
   if (screen === "write" && selectedTopic) return (
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
       <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
@@ -892,7 +872,6 @@ export default function MachSafety({ onBack }) {
       </div>
 
       <div style={{maxWidth:600,margin:"0 auto",padding:"14px 14px 40px"}}>
-        {/* 문제 + SVG */}
         {selectedTopic.svg && SVG_SCENES[selectedTopic.svg] && (
           <div style={{marginBottom:12,borderRadius:14,overflow:"hidden",border:`1px solid ${C.border}`}}>
             {SVG_SCENES[selectedTopic.svg]}
@@ -909,7 +888,6 @@ export default function MachSafety({ onBack }) {
           </div>
         </div>
 
-        {/* 답안 입력 */}
         <div style={{background:C.card,borderRadius:14,padding:"12px",marginBottom:12,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:10,color:C.muted,marginBottom:7}}>📝 답안 (개요 → 본론 → 결론)</div>
           <textarea value={answer} onChange={e=>setAnswer(e.target.value)}
@@ -922,11 +900,11 @@ export default function MachSafety({ onBack }) {
         </div>
 
         {!gradeResult && (
-          <button onClick={handleGrade} disabled={grading||!answer.trim()}
+          <button onClick={handleGrade} disabled={!answer.trim()}
             style={{width:"100%",padding:"13px",marginBottom:8,
-              background:grading||!answer.trim()?`${C.accent}30`:`linear-gradient(135deg,${C.accent},#7c3aed)`,
-              border:"none",borderRadius:13,color:grading||!answer.trim()?"#64748b":"#fff",fontSize:14,fontWeight:700,cursor:grading||!answer.trim()?"not-allowed":"pointer"}}>
-            {grading?"⏳ AI 채점 중...":"🤖 AI 채점받기"}
+              background:!answer.trim()?`${C.accent}30`:`linear-gradient(135deg,${C.accent},#7c3aed)`,
+              border:"none",borderRadius:13,color:!answer.trim()?"#64748b":"#fff",fontSize:14,fontWeight:700,cursor:!answer.trim()?"not-allowed":"pointer"}}>
+            📝 채점받기
           </button>
         )}
 
@@ -959,17 +937,17 @@ export default function MachSafety({ onBack }) {
           </div>
         )}
 
-        <button onClick={handleModel} disabled={modelLoading}
+        <button onClick={handleModel}
           style={{width:"100%",padding:"12px",marginBottom:8,
             background:`${C.gold}15`,border:`1px solid ${C.gold}40`,
-            borderRadius:13,color:C.gold,fontSize:13,fontWeight:700,cursor:modelLoading?"not-allowed":"pointer"}}>
-          {modelLoading?"⏳ 생성 중...":"✨ AI 모범답안 보기"}
+            borderRadius:13,color:C.gold,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          {modelAnswer?"📖 모범답안 닫기":"📖 모범답안 보기"}
         </button>
 
         {modelAnswer && (
           <div style={{background:`${C.gold}08`,border:`1px solid ${C.gold}30`,borderRadius:14,padding:"14px"}}>
-            <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:10}}>✨ AI 모범답안</div>
-            <div style={{fontSize:12,color:C.text,lineHeight:1.9,whiteSpace:"pre-wrap"}}>{modelAnswer}</div>
+            <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:10}}>📖 답안은행 모범답안</div>
+            <AnswerView answerKey={findAnswerKey(selectedTopic)} />
           </div>
         )}
       </div>
