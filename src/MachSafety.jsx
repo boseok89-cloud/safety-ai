@@ -657,7 +657,30 @@ function gradeAnswer(topic, answer) {
     keywordsMissed: missed,
   };
 }
+// ── 내 답안 저장 (서버 /api/answers, 비용 0) ──
+const KINDS = ["교재 필사", "내 말", "혼합"];
 
+function getAnswersKey() {
+  let k = "";
+  try { k = localStorage.getItem("mach_key") || ""; } catch {}
+  if (!k) {
+    k = window.prompt("저장용 비밀번호를 입력하세요") || "";
+    try { if (k) localStorage.setItem("mach_key", k); } catch {}
+  }
+  return k;
+}
+
+async function saveAnswerApi(item) {
+  const res = await fetch("/api/answers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-answers-key": getAnswersKey() },
+    body: JSON.stringify(item),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (res.status === 401) { try { localStorage.removeItem("mach_key"); } catch {} }
+  if (!res.ok) throw new Error(d.error || "저장 실패");
+  return d;
+}
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -670,7 +693,30 @@ export default function MachSafety({ onBack }) {
   const [progress, setProgress] = useState({});
   const [searchTxt, setSearchTxt] = useState("");
   const [showOnlyPending, setShowOnlyPending] = useState(false);
-  const [examQ, setExamQ] = useState(null);
+   const [examQ, setExamQ] = useState(null);
+  const [saveKind, setSaveKind] = useState("내 말");
+  const [saveMemo, setSaveMemo] = useState("");
+  const [saveMsg, setSaveMsg] = useState("");
+
+  const handleSave = async () => {
+    if (!answer.trim()) return;
+    setSaveMsg("저장 중...");
+    try {
+      await saveAnswerApi({
+        topicId: selectedTopic.id,
+        topicTitle: selectedTopic.title,
+        round: examQ ? examQ.round : null,
+        q: examQ ? examQ.q : null,
+        kind: saveKind,
+        text: answer,
+        memo: saveMemo,
+      });
+      setSaveMsg("✅ 저장됨");
+      setSaveMemo("");
+    } catch (e) {
+      setSaveMsg("❌ " + e.message);
+    }
+  };
 
   useEffect(() => {
     try { const p = JSON.parse(localStorage.getItem("mach_prog")||"{}"); setProgress(p); } catch {}
@@ -898,7 +944,26 @@ export default function MachSafety({ onBack }) {
             style={{width:"100%",padding:"11px",borderRadius:10,border:`1.5px solid ${answer?C.accent+"50":C.border}`,
               background:"#0d1520",color:C.text,fontSize:12,lineHeight:1.8,outline:"none",
               boxSizing:"border-box",resize:"vertical",fontFamily:"'Noto Sans KR',sans-serif"}}/>
-          <div style={{textAlign:"right",fontSize:10,color:C.muted,marginTop:3}}>{answer.length}자</div>
+                    <div style={{textAlign:"right",fontSize:10,color:C.muted,marginTop:3}}>{answer.length}자</div>
+          <div style={{borderTop:`1px solid ${C.border}`,marginTop:10,paddingTop:10}}>
+            <div style={{display:"flex",gap:6,marginBottom:8}}>
+              {KINDS.map(k=>(
+                <button key={k} onClick={()=>setSaveKind(k)}
+                  style={{flex:1,padding:"7px 0",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer",
+                    background:saveKind===k?`${C.accent}30`:"transparent",
+                    color:saveKind===k?C.highlight:C.muted,
+                    border:`1px solid ${saveKind===k?C.accent:C.border}`}}>{k}</button>
+              ))}
+            </div>
+            <input value={saveMemo} onChange={e=>setSaveMemo(e.target.value)} placeholder="메모 (선택: 교재명·쪽수 등)"
+              style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:11,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+            <button onClick={handleSave} disabled={!answer.trim()}
+              style={{width:"100%",padding:"10px",borderRadius:10,border:"none",fontSize:12,fontWeight:700,
+                cursor:answer.trim()?"pointer":"not-allowed",
+                background:answer.trim()?`linear-gradient(135deg,${C.green},#059669)`:`${C.green}30`,
+                color:answer.trim()?"#fff":"#64748b"}}>💾 내 답안 저장</button>
+            {saveMsg && <div style={{fontSize:11,color:C.muted,marginTop:6,textAlign:"center"}}>{saveMsg}</div>}
+          </div>
         </div>
 
         {!gradeResult && (
