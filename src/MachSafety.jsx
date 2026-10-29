@@ -619,7 +619,6 @@ function cleanQ(q) {
     .replace(/\s*\d\s*[-–]\s*\d\s*$/g, "")
     .replace(/\s+/g, " ")
     .trim();
-}.trim();
 }
 function findRelatedExams(topic, limit=3) {
   const searchTerms = [topic.title, ...topic.keywords.slice(0,3)];
