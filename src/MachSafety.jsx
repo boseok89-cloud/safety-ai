@@ -609,6 +609,15 @@ const TOPICS = [
 
 
 // ── 관련 기출문제 찾기 (제목/키워드 매칭) ─────────────────
+// 시험지 머리글(답안지 번호란·안내 문구) 제거
+function cleanQ(q) {
+  return q
+    .replace(/\d\s*[-–]\s*\d\s*(청렴은 건전한 국가 재정의 첫걸음\s*)?(기술사 제\s*\d+\s*회\s*)?야\s*번호\s*성\s*명(\s*공익신고 홈페이지\s*:\s*www\.cleani\.org)?/g, " ")
+    .replace(/※\s*(다음 문제 중|총 6문제 중)\s*\d\s*문제를\s*선택하여\s*설명하시오\.?\s*\(각\s*\d+\s*점\)/g, " ")
+    .replace(/\s*\d\s*[-–]\s*\d\s*(청렴은 건전한 국가 재정의 첫걸음)?\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 function findRelatedExams(topic, limit=3) {
   const searchTerms = [topic.title, ...topic.keywords.slice(0,3)];
   const scored = EXAM_BANK.map(e => {
@@ -617,7 +626,7 @@ function findRelatedExams(topic, limit=3) {
       const cleaned = term.replace(/\([^)]*\)/g,"").trim();
       if (cleaned.length >= 2 && e.q.includes(cleaned)) score += cleaned.length;
     });
-    return {...e, score};
+    return {...e, q: cleanQ(e.q), score};
   }).filter(e => e.score > 0).sort((a,b)=>b.score-a.score);
   return scored.slice(0, limit);
 }
@@ -971,7 +980,8 @@ export default function MachSafety({ onBack }) {
               {related.map((r,i)=>(
                  <div key={i} onClick={()=>{setExamQ(r);setAnswer("");setGradeResult(null);setModelAnswer("");setScreen("write");}} style={{padding:"10px 0",cursor:"pointer",borderBottom:i<related.length-1?`1px solid ${C.border}`:"none"}}>
                   <span style={{fontSize:10,fontWeight:700,color:C.gold,background:`${C.gold}15`,padding:"2px 7px",borderRadius:6,marginRight:6}}>{r.round}회</span>
-                    <span style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{r.q}</span>
+                  <span style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{r.q}</span>
+                  {r.q.endsWith("...") && <span style={{fontSize:10,color:C.red,marginLeft:4}}>(원문 일부 누락)</span>}
                   <div style={{fontSize:10,color:C.accent,marginTop:4}}>✍️ 이 문제로 답안 연습</div>
                 </div>
               ))}
