@@ -681,6 +681,23 @@ async function saveAnswerApi(item) {
   if (!res.ok) throw new Error(d.error || "저장 실패");
   return d;
 }
+async function loadAnswersApi() {
+  const res = await fetch("/api/answers", { headers: { "x-answers-key": getAnswersKey() } });
+  const d = await res.json().catch(() => ({}));
+  if (res.status === 401) { try { localStorage.removeItem("mach_key"); } catch {} }
+  if (!res.ok) throw new Error(d.error || "불러오기 실패");
+  return d;
+}
+
+async function deleteAnswerApi(id) {
+  const res = await fetch("/api/answers?id=" + encodeURIComponent(id), {
+    method: "DELETE",
+    headers: { "x-answers-key": getAnswersKey() },
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "삭제 실패");
+  return d;
+}
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -717,7 +734,31 @@ export default function MachSafety({ onBack }) {
       setSaveMsg("❌ " + e.message);
     }
   };
+  const [mineItems, setMineItems] = useState([]);
+  const [mineLoading, setMineLoading] = useState(false);
+  const [mineErr, setMineErr] = useState("");
+  const [mineKind, setMineKind] = useState("전체");
+  const [mineSearch, setMineSearch] = useState("");
+  const [mineOpen, setMineOpen] = useState(null);
+  const [mineCopied, setMineCopied] = useState(null);
 
+  const openMine = async (searchText) => {
+    setMineSearch(searchText || "");
+    setMineKind("전체");
+    setMineOpen(null);
+    setMineErr("");
+    setScreen("mine");
+    setMineLoading(true);
+    try { const d = await loadAnswersApi(); setMineItems(d.items || []); }
+    catch (e) { setMineErr(e.message); }
+    finally { setMineLoading(false); }
+  };
+
+  const removeMine = async (id) => {
+    if (!window.confirm("이 답안을 삭제할까요?")) return;
+    try { await deleteAnswerApi(id); setMineItems(prev => prev.filter(x => x.id !== id)); }
+    catch (e) { setMineErr(e.message); }
+  };
   useEffect(() => {
     try { const p = JSON.parse(localStorage.getItem("mach_prog")||"{}"); setProgress(p); } catch {}
   }, []);
@@ -790,7 +831,10 @@ export default function MachSafety({ onBack }) {
             </div>
           ))}
         </div>
-
+        <button onClick={()=>openMine("")}
+          style={{width:"100%",padding:"11px",marginBottom:10,borderRadius:12,border:`1px solid ${C.green}40`,background:`${C.green}15`,color:C.green,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          📚 내 답안 수집함
+        </button>
         <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
           style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
 
@@ -962,7 +1006,11 @@ export default function MachSafety({ onBack }) {
                 cursor:answer.trim()?"pointer":"not-allowed",
                 background:answer.trim()?`linear-gradient(135deg,${C.green},#059669)`:`${C.green}30`,
                 color:answer.trim()?"#fff":"#64748b"}}>💾 내 답안 저장</button>
-            {saveMsg && <div style={{fontSize:11,color:C.muted,marginTop:6,textAlign:"center"}}>{saveMsg}</div>}
+             {saveMsg && <div style={{fontSize:11,color:C.muted,marginTop:6,textAlign:"center"}}>{saveMsg}</div>}
+            <button onClick={()=>openMine(selectedTopic.title)}
+              style={{width:"100%",marginTop:8,padding:"8px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>
+              📚 이 문제의 내 답안 보기
+            </button>
           </div>
         </div>
 
@@ -1020,6 +1068,89 @@ export default function MachSafety({ onBack }) {
       </div>
     </div>
   );
+  // ── 내 답안 수집함 ─────────────────────────────────────────
+  if (screen === "mine") {
+    const kw = mineSearch.trim();
+    const list = mineItems.filter(x => {
+      if (mineKind !== "전체" && x.kind !== mineKind) return false;
+      if (kw && !(x.topicTitle||"").includes(kw) && !(x.q||"").includes(kw) && !(x.text||"").includes(kw) && !(x.memo||"").includes(kw)) return false;
+      return true;
+    });
+    const groups = [];
+    list.forEach(x => {
+      const key = x.topicTitle || "(제목 없음)";
+      let g = groups.find(g => g.title === key);
+      if (!g) { g = { title: key, items: [] }; groups.push(g); }
+      g.items.push(x);
+    });
+    const kindColor = { "교재 필사": C.orange, "내 말": C.green, "혼합": C.accent };
 
+    return (
+      <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
+        <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
+          <button onClick={()=>setScreen("home")} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 목록</button>
+          <div style={{flex:1,fontSize:13,fontWeight:700}}>📚 내 답안 수집함 ({list.length}/{mineItems.length})</div>
+          <button onClick={()=>openMine(mineSearch)} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>↻</button>
+        </div>
+
+        <div style={{maxWidth:600,margin:"0 auto",padding:"14px 14px 40px"}}>
+          <input value={mineSearch} onChange={e=>setMineSearch(e.target.value)} placeholder="🔍 문제·내용·메모 검색"
+            style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+          <div style={{display:"flex",gap:5,marginBottom:10}}>
+            {["전체",...KINDS].map(k=>(
+              <button key={k} onClick={()=>setMineKind(k)}
+                style={{flex:1,padding:"6px 0",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
+                  background:mineKind===k?`${C.accent}30`:C.card,
+                  color:mineKind===k?C.highlight:C.muted,
+                  border:`1px solid ${mineKind===k?C.accent:C.border}`}}>{k}</button>
+            ))}
+          </div>
+
+          {mineLoading && <div style={{textAlign:"center",color:C.muted,fontSize:12,padding:20}}>불러오는 중...</div>}
+          {mineErr && <div style={{color:C.red,fontSize:12,marginBottom:10}}>❌ {mineErr}</div>}
+          {!mineLoading && !mineErr && list.length===0 && (
+            <div style={{textAlign:"center",color:C.muted,fontSize:12,padding:30}}>저장된 답안이 없습니다</div>
+          )}
+
+          {groups.map((g,gi)=>(
+            <div key={gi} style={{marginBottom:14}}>
+              <div style={{fontSize:12,fontWeight:800,color:C.gold,marginBottom:6}}>
+                {g.title} <span style={{color:C.muted,fontWeight:400}}>({g.items.length}개)</span>
+              </div>
+              {g.items.map(x=>(
+                <div key={x.id} style={{background:C.card,borderRadius:12,padding:"10px 12px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <div onClick={()=>setMineOpen(mineOpen===x.id?null:x.id)} style={{cursor:"pointer"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>
+                      <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${kindColor[x.kind]||C.accent}20`,color:kindColor[x.kind]||C.accent}}>{x.kind}</span>
+                      {x.round && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${C.gold}15`,color:C.gold}}>{x.round}회 기출</span>}
+                      <span style={{fontSize:10,color:C.muted,marginLeft:"auto"}}>{new Date(x.savedAt).toLocaleString("ko-KR")}</span>
+                    </div>
+                    {x.q && <div style={{fontSize:11,color:C.orange,marginBottom:4,lineHeight:1.5}}>Q. {mineOpen===x.id?x.q:(x.q.length>60?x.q.slice(0,60)+"...":x.q)}</div>}
+                    {x.memo && <div style={{fontSize:10,color:C.muted,marginBottom:4}}>📎 {x.memo}</div>}
+                    <div style={{fontSize:12,color:C.text,lineHeight:1.7,whiteSpace:"pre-wrap"}}>
+                      {mineOpen===x.id?x.text:(x.text.length>120?x.text.slice(0,120)+"...":x.text)}
+                    </div>
+                    <div style={{fontSize:10,color:C.muted,marginTop:4}}>{x.text.length}자 · {mineOpen===x.id?"탭하면 접기":"탭하면 전체 보기"}</div>
+                  </div>
+                  {mineOpen===x.id && (
+                    <div style={{display:"flex",gap:6,marginTop:8}}>
+                      <button onClick={()=>{ try { navigator.clipboard.writeText(x.text); setMineCopied(x.id); } catch {} }}
+                        style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.text,fontSize:11,cursor:"pointer"}}>
+                        {mineCopied===x.id?"✓ 복사됨":"📋 복사"}
+                      </button>
+                      <button onClick={()=>removeMine(x.id)}
+                        style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.red}40`,background:`${C.red}10`,color:C.red,fontSize:11,cursor:"pointer"}}>
+                        🗑 삭제
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return null;
 }
