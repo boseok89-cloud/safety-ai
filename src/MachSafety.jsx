@@ -698,6 +698,33 @@ async function deleteAnswerApi(id) {
   if (!res.ok) throw new Error(d.error || "삭제 실패");
   return d;
 }
+function downloadFile(name, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportAnswers(items, type) {
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  if (type === "json") {
+    downloadFile(`answers-${stamp}.json`, JSON.stringify(items, null, 2), "application/json");
+    return;
+  }
+  const txt = items.map(x =>
+    `[${x.topicTitle}] ${x.kind}${x.round ? ` · ${x.round}회 기출` : ""} · ${new Date(x.savedAt).toLocaleString("ko-KR")}\n` +
+    (x.q ? `Q. ${x.q}\n` : "") +
+    (x.memo ? `메모: ${x.memo}\n` : "") +
+    `\n${x.text}\n`
+  ).join("\n==========\n\n");
+  downloadFile(`answers-${stamp}.txt`, "\uFEFF" + txt, "text/plain;charset=utf-8");
+}
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1105,7 +1132,18 @@ export default function MachSafety({ onBack }) {
                   border:`1px solid ${mineKind===k?C.accent:C.border}`}}>{k}</button>
             ))}
           </div>
-
+          {mineItems.length>0 && (
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              <button onClick={()=>exportAnswers(mineItems,"json")}
+                style={{flex:2,padding:"9px",borderRadius:10,border:`1px solid ${C.green}40`,background:`${C.green}15`,color:C.green,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                ⬇ JSON 백업 (전체 {mineItems.length}개)
+              </button>
+              <button onClick={()=>exportAnswers(mineItems,"txt")}
+                style={{flex:1,padding:"9px",borderRadius:10,border:`1px solid ${C.border}`,background:"transparent",color:C.text,fontSize:11,cursor:"pointer"}}>
+                ⬇ 텍스트
+              </button>
+            </div>
+          )}
           {mineLoading && <div style={{textAlign:"center",color:C.muted,fontSize:12,padding:20}}>불러오는 중...</div>}
           {mineErr && <div style={{color:C.red,fontSize:12,marginBottom:10}}>❌ {mineErr}</div>}
           {!mineLoading && !mineErr && list.length===0 && (
