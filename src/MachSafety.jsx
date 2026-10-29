@@ -612,11 +612,14 @@ const TOPICS = [
 // 시험지 머리글(답안지 번호란·안내 문구) 제거
 function cleanQ(q) {
   return q
-    .replace(/\d\s*[-–]\s*\d\s*(청렴은 건전한 국가 재정의 첫걸음\s*)?(기술사 제\s*\d+\s*회\s*)?야\s*번호\s*성\s*명(\s*공익신고 홈페이지\s*:\s*www\.cleani\.org)?/g, " ")
+    .replace(/\s*\d\s*[-–]\s*\d(?=(\s*\(\s*\))*\s*(청렴은 건전한 국가 재정의 첫걸음\s*)?(기술사 제\s*\d+\s*회\s*)?야\s*번호\s*성\s*명)/g, " ")
+    .replace(/\s*(청렴은 건전한 국가 재정의 첫걸음|기술사 제\s*\d+\s*회)?\s*야\s*번호\s*성\s*명(\s*공익신고 홈페이지\s*:\s*www\.cleani\.org)?/g, " ")
+    .replace(/\s*청렴은 건전한 국가 재정의 첫걸음(\s*공익신고 홈페이지\s*:\s*www\.cleani\.org)?/g, " ")
     .replace(/※\s*(다음 문제 중|총 6문제 중)\s*\d\s*문제를\s*선택하여\s*설명하시오\.?\s*\(각\s*\d+\s*점\)/g, " ")
-    .replace(/\s*\d\s*[-–]\s*\d\s*(청렴은 건전한 국가 재정의 첫걸음)?\s*$/g, "")
+    .replace(/\s*\d\s*[-–]\s*\d\s*$/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}.trim();
 }
 function findRelatedExams(topic, limit=3) {
   const searchTerms = [topic.title, ...topic.keywords.slice(0,3)];
