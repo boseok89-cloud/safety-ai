@@ -43,7 +43,18 @@ export default async function handler(req, res) {
       await cmd("LPUSH", KEY, JSON.stringify(item));
       return res.status(200).json({ ok: true, id: item.id });
     }
-
+    if (req.method === "PUT") {
+      const b = req.body || {};
+      const raw = await cmd("LRANGE", KEY, 0, -1);
+      const idx = (raw || []).findIndex((s) => {
+        try { return JSON.parse(s).id === b.id; } catch { return false; }
+      });
+      if (idx < 0) return res.status(404).json({ error: "찾을 수 없습니다" });
+      const item = JSON.parse(raw[idx]);
+      item.verify = b.verify || null;
+      await cmd("LSET", KEY, idx, JSON.stringify(item));
+      return res.status(200).json({ ok: true });
+    }
     if (req.method === "DELETE") {
       const id = req.query.id;
       const raw = await cmd("LRANGE", KEY, 0, -1);
