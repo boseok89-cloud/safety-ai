@@ -670,6 +670,7 @@ export default function MachSafety({ onBack }) {
   const [progress, setProgress] = useState({});
   const [searchTxt, setSearchTxt] = useState("");
   const [showOnlyPending, setShowOnlyPending] = useState(false);
+  const [examQ, setExamQ] = useState(null);
 
   useEffect(() => {
     try { const p = JSON.parse(localStorage.getItem("mach_prog")||"{}"); setProgress(p); } catch {}
@@ -851,9 +852,10 @@ export default function MachSafety({ onBack }) {
             <div style={{marginTop:14,background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}`}}>
               <div style={{fontSize:12,fontWeight:800,color:C.orange,marginBottom:10}}>📜 실제 기출 이력 ({related.length}건 발견)</div>
               {related.map((r,i)=>(
-                <div key={i} style={{padding:"8px 0",borderBottom:i<related.length-1?`1px solid ${C.border}`:"none"}}>
+                 <div key={i} onClick={()=>{setExamQ(r);setAnswer("");setGradeResult(null);setModelAnswer("");setScreen("write");}} style={{padding:"10px 0",cursor:"pointer",borderBottom:i<related.length-1?`1px solid ${C.border}`:"none"}}>
                   <span style={{fontSize:10,fontWeight:700,color:C.gold,background:`${C.gold}15`,padding:"2px 7px",borderRadius:6,marginRight:6}}>{r.round}회</span>
-                  <span style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{r.q.length>80?r.q.slice(0,80)+"...":r.q}</span>
+                    <span style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{r.q}</span>
+                  <div style={{fontSize:10,color:C.accent,marginTop:4}}>✍️ 이 문제로 답안 연습</div>
                 </div>
               ))}
             </div>
@@ -867,7 +869,7 @@ export default function MachSafety({ onBack }) {
   if (screen === "write" && selectedTopic) return (
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
       <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
-        <button onClick={()=>setScreen("card")} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 카드</button>
+           <button onClick={()=>{setExamQ(null);setScreen("card");}} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 카드</button>
         <div style={{flex:1,fontSize:13,fontWeight:700}}>✍️ 답안 연습</div>
       </div>
 
@@ -878,8 +880,8 @@ export default function MachSafety({ onBack }) {
           </div>
         )}
         <div style={{background:C.card,borderRadius:14,padding:"14px",marginBottom:12,border:`1px solid ${C.border}`}}>
-          <div style={{fontSize:10,color:C.muted,marginBottom:5}}>📌 문제</div>
-          <div style={{fontSize:15,fontWeight:800,color:"#fff",marginBottom:8}}>{selectedTopic.title}</div>
+                   <div style={{fontSize:10,color:C.muted,marginBottom:5}}>{examQ?`📌 ${examQ.round}회 기출 문제 (주제: ${selectedTopic.title})`:"📌 문제"}</div>
+          <div style={{fontSize:15,fontWeight:800,color:"#fff",marginBottom:8,lineHeight:1.6}}>{examQ?examQ.q:selectedTopic.title}</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
             {selectedTopic.keywords.map((kw,i)=>(
               <span key={i} onClick={()=>window.open(`https://www.google.com/search?q=기계안전기술사+${encodeURIComponent(kw)}`,"_blank")}
