@@ -736,6 +736,45 @@ function exportAnswers(items, type) {
   ).join("\n==========\n\n");
   downloadFile(`answers-${stamp}.txt`, "\uFEFF" + txt, "text/plain;charset=utf-8");
 }
+const SRC_TYPES = ["법령", "고시", "KOSHA GUIDE", "참고"];
+const SRC_OK = ["법령", "고시", "KOSHA GUIDE"];
+
+function splitLines(text) {
+  const out = [];
+  text.split(/\n+/).forEach(raw => {
+    const line = raw.trim();
+    if (!line) return;
+    if (line.length > 60) {
+      line.replace(/\.\s+/g, ".\n").split("\n").forEach(s => { if (s.trim()) out.push(s.trim()); });
+    } else {
+      out.push(line);
+    }
+  });
+  return out;
+}
+
+async function updateVerifyApi(id, verify) {
+  const res = await fetch("/api/answers", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "x-answers-key": getAnswersKey() },
+    body: JSON.stringify({ id, verify }),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "검증 저장 실패");
+  return d;
+}
+
+function lawUrl(type, src) {
+  const s = (src || "").trim();
+  if (!s) return "";
+  if (type === "법령") {
+    const m = s.match(/^(.+?)\s*(제\s*\d+\s*조(?:\s*의\s*\d+)?)/);
+    if (m) return "https://www.law.go.kr/법령/" + encodeURIComponent(m[1].replace(/\s/g, "")) + "/" + encodeURIComponent(m[2].replace(/\s/g, ""));
+    return "https://www.law.go.kr/법령/" + encodeURIComponent(s.replace(/\s/g, ""));
+  }
+  if (type === "고시") return "https://www.law.go.kr/행정규칙/" + encodeURIComponent(s.replace(/\s/g, ""));
+  return "https://www.google.com/search?q=" + encodeURIComponent(s);
+}
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -796,6 +835,36 @@ export default function MachSafety({ onBack }) {
     if (!window.confirm("이 답안을 삭제할까요?")) return;
     try { await deleteAnswerApi(id); setMineItems(prev => prev.filter(x => x.id !== id)); }
     catch (e) { setMineErr(e.message); }
+  };
+    const [verifyItem, setVerifyItem] = useState(null);
+  const [verifyLines, setVerifyLines] = useState([]);
+  const [verifyMsg, setVerifyMsg] = useState("");
+
+  const openVerify = (x) => {
+    setVerifyItem(x);
+    setVerifyMsg("");
+    setVerifyLines(
+      x.verify && x.verify.lines
+        ? x.verify.lines
+        : splitLines(x.text).map(t => ({ text: t, tag: x.kind === "내 말" ? "mine" : "fact", srcType: "법령", src: "", checked: false }))
+    );
+    setScreen("verify");
+  };
+
+  const setVL = (i, patch) => setVerifyLines(prev => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+
+  const saveVerify = async () => {
+    const facts = verifyLines.filter(l => l.tag === "fact");
+    const okFacts = facts.filter(l => SRC_OK.includes(l.srcType) && l.src.trim() && l.checked);
+    const status = facts.length > 0 && okFacts.length === facts.length ? "sourced" : "draft";
+    setVerifyMsg("저장 중...");
+    try {
+      await updateVerifyApi(verifyItem.id, { status, lines: verifyLines, updatedAt: new Date().toISOString() });
+      setMineItems(prev => prev.map(x => x.id === verifyItem.id ? { ...x, verify: { status, lines: verifyLines } } : x));
+      setVerifyMsg(status === "sourced" ? "✅ 저장됨 · 출처확인 완료" : "✅ 저장됨 (아직 초안: 사실 줄의 출처·대조 체크가 남음)");
+    } catch (e) {
+      setVerifyMsg("❌ " + e.message);
+    }
   };
   useEffect(() => {
     try { const p = JSON.parse(localStorage.getItem("mach_prog")||"{}"); setProgress(p); } catch {}
@@ -871,7 +940,7 @@ export default function MachSafety({ onBack }) {
         </div>
         <button onClick={()=>openMine("")}
           style={{width:"100%",padding:"11px",marginBottom:10,borderRadius:12,border:`1px solid ${C.green}40`,background:`${C.green}15`,color:C.green,fontSize:13,fontWeight:700,cursor:"pointer"}}>
-          📚 내 답안 수집함
+         📚 내 답안 수집함
         </button>
         <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
           style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
@@ -1107,6 +1176,77 @@ export default function MachSafety({ onBack }) {
       </div>
     </div>
   );
+    // ── 답안 검증 ──────────────────────────────────────────────
+  if (screen === "verify" && verifyItem) {
+    const facts = verifyLines.filter(l => l.tag === "fact");
+    const okCount = facts.filter(l => SRC_OK.includes(l.srcType) && l.src.trim() && l.checked).length;
+    const tagStyle = (on, color) => ({
+      flex:1, padding:"6px 0", borderRadius:8, fontSize:11, fontWeight:700, cursor:"pointer",
+      background:on?`${color}30`:"transparent", color:on?color:C.muted, border:`1px solid ${on?color:C.border}`,
+    });
+    return (
+      <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
+        <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
+          <button onClick={()=>setScreen("mine")} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 수집함</button>
+          <div style={{flex:1,fontSize:13,fontWeight:700}}>🔍 답안 검증</div>
+        </div>
+
+        <div style={{maxWidth:600,margin:"0 auto",padding:"14px 14px 40px"}}>
+          <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:4}}>{verifyItem.topicTitle}</div>
+            <div style={{fontSize:10,color:C.muted}}>{verifyItem.kind}{verifyItem.round?` · ${verifyItem.round}회 기출`:""}</div>
+            <div style={{fontSize:12,marginTop:8,color:facts.length>0&&okCount===facts.length?C.green:C.orange}}>
+              사실 {facts.length}줄 중 출처 확인 {okCount}줄 {facts.length>0&&okCount===facts.length?"✓ 출처확인 가능":""}
+            </div>
+            <div style={{fontSize:10,color:C.muted,marginTop:6,lineHeight:1.6}}>
+              줄마다 사실 / 내 생각 / 제외를 고르세요. 사실 줄은 법령·고시·KOSHA GUIDE 출처를 적고 원문과 대조한 뒤 체크해야 해요. (참고는 출처로 인정되지 않아요)
+            </div>
+          </div>
+
+          {verifyLines.map((l,i)=>(
+            <div key={i} style={{background:C.card,borderRadius:12,padding:"10px 12px",marginBottom:6,
+              border:`1px solid ${l.tag==="fact"?C.accent+"50":l.tag==="mine"?C.green+"50":C.border}`,opacity:l.tag==="skip"?0.5:1}}>
+              <div style={{fontSize:12,lineHeight:1.7,marginBottom:8}}>{l.text}</div>
+              <div style={{display:"flex",gap:5}}>
+                <button onClick={()=>setVL(i,{tag:"fact"})} style={tagStyle(l.tag==="fact",C.accent)}>사실</button>
+                <button onClick={()=>setVL(i,{tag:"mine"})} style={tagStyle(l.tag==="mine",C.green)}>내 생각</button>
+                <button onClick={()=>setVL(i,{tag:"skip"})} style={tagStyle(l.tag==="skip",C.muted)}>제외</button>
+              </div>
+              {l.tag==="fact" && (
+                <div style={{marginTop:8}}>
+                  <div style={{display:"flex",gap:5,marginBottom:6}}>
+                    {SRC_TYPES.map(t=>(
+                      <button key={t} onClick={()=>setVL(i,{srcType:t})} style={tagStyle(l.srcType===t,t==="참고"?C.orange:C.gold)}>{t}</button>
+                    ))}
+                  </div>
+                  <input value={l.src} onChange={e=>setVL(i,{src:e.target.value})} placeholder="예: 산업안전보건법 제36조"
+                    style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:11,outline:"none",boxSizing:"border-box"}}/>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6}}>
+                    <button onClick={()=>{ const u = lawUrl(l.srcType, l.src); if (u) window.open(u, "_blank"); }}
+                      style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.highlight,fontSize:11,cursor:"pointer"}}>
+                      🔗 원문 열기
+                    </button>
+                    <label style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:C.text,cursor:"pointer"}}>
+                      <input type="checkbox" checked={!!l.checked} onChange={e=>setVL(i,{checked:e.target.checked})}/> 원문 대조 완료
+                    </label>
+                  </div>
+                  {l.srcType==="참고" && (
+                    <div style={{fontSize:10,color:C.orange,marginTop:4}}>참고 자료는 출처로 인정되지 않아요. 법령·고시·KOSHA GUIDE로 대조하세요.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <button onClick={saveVerify}
+            style={{width:"100%",padding:"13px",marginTop:8,borderRadius:13,border:"none",background:`linear-gradient(135deg,${C.green},#059669)`,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+            💾 검증 결과 저장
+          </button>
+          {verifyMsg && <div style={{fontSize:11,color:C.muted,marginTop:8,textAlign:"center"}}>{verifyMsg}</div>}
+        </div>
+      </div>
+    );
+  }
   // ── 내 답안 수집함 ─────────────────────────────────────────
   if (screen === "mine") {
     const kw = mineSearch.trim();
@@ -1184,6 +1324,10 @@ export default function MachSafety({ onBack }) {
                   </div>
                   {mineOpen===x.id && (
                     <div style={{display:"flex",gap:6,marginTop:8}}>
+                      <button onClick={()=>openVerify(x)}
+                        style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.accent}40`,background:`${C.accent}15`,color:C.highlight,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        🔍 검증{x.verify?` (${x.verify.status==="sourced"?"출처확인":"초안"})`:""}
+                      </button>
                       <button onClick={()=>{ try { navigator.clipboard.writeText(x.text); setMineCopied(x.id); } catch {} }}
                         style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.text,fontSize:11,cursor:"pointer"}}>
                         {mineCopied===x.id?"✓ 복사됨":"📋 복사"}
