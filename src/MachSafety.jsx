@@ -1222,10 +1222,15 @@ export default function MachSafety({ onBack }) {
                   <input value={l.src} onChange={e=>setVL(i,{src:e.target.value})} placeholder="예: 산업안전보건법 제36조"
                     style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:11,outline:"none",boxSizing:"border-box"}}/>
                   <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6}}>
-                    <button onClick={()=>{ const u = lawUrl(l.srcType, l.src); if (u) window.open(u, "_blank"); }}
+                    <button onClick={()=>{ const u = lawUrl(l.srcType, l.src); if (u) window.open(u, "_blank"); else window.alert("출처 칸에 법령명과 조문을 먼저 입력하세요. 예: 산업안전보건법 제36조"); }}
                       style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.highlight,fontSize:11,cursor:"pointer"}}>
                       🔗 원문 열기
                     </button>
+                    <button onClick={()=>{ const q = (l.src||"").trim(); if (q) window.open("https://www.google.com/search?q="+encodeURIComponent("site:law.go.kr "+q), "_blank"); else window.alert("출처 칸을 먼저 입력하세요."); }}
+                      style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>
+                      🔎 검색
+                    </button>
+                    
                     <label style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:C.text,cursor:"pointer"}}>
                       <input type="checkbox" checked={!!l.checked} onChange={e=>setVL(i,{checked:e.target.checked})}/> 원문 대조 완료
                     </label>
