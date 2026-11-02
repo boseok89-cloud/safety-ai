@@ -775,6 +775,34 @@ function lawUrl(type, src) {
   if (type === "고시") return "https://www.law.go.kr/행정규칙/" + encodeURIComponent(s.replace(/\s/g, ""));
   return "https://www.google.com/search?q=" + encodeURIComponent(s);
 }
+const CAND_KINDS = ["내 말"]; // 모범답안 후보로 인정하는 종류 (교재 필사·혼합 제외)
+
+function isCandidate(x) {
+  return !!(x.verify && x.verify.status === "sourced" && CAND_KINDS.includes(x.kind));
+}
+
+function exportCandidates(items) {
+  const cands = items.filter(isCandidate).map(x => ({
+    topicTitle: x.topicTitle,
+    round: x.round,
+    q: x.q,
+    kind: x.kind,
+    savedAt: x.savedAt,
+    lines: (x.verify.lines || []).filter(l => l.tag !== "skip").map(l =>
+      l.tag === "fact"
+        ? { t: "fact", text: l.text, srcType: l.srcType, src: l.src }
+        : { t: "mine", text: l.text }
+    ),
+  }));
+  if (cands.length === 0) {
+    window.alert("후보가 없습니다. 종류가 '내 말'이고 검증 상태가 '출처확인'인 답안만 후보가 됩니다.");
+    return;
+  }
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  downloadFile(`candidates-${stamp}.json`, JSON.stringify(cands, null, 2), "application/json");
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1301,6 +1329,12 @@ export default function MachSafety({ onBack }) {
               </button>
             </div>
           )}
+            {mineItems.length>0 && (
+            <button onClick={()=>exportCandidates(mineItems)}
+              style={{width:"100%",padding:"9px",marginBottom:10,borderRadius:10,border:`1px solid ${C.gold}40`,background:`${C.gold}15`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+              🏅 모범답안 후보 내보내기 ({mineItems.filter(isCandidate).length}개)
+            </button>
+          )}
           {mineLoading && <div style={{textAlign:"center",color:C.muted,fontSize:12,padding:20}}>불러오는 중...</div>}
           {mineErr && <div style={{color:C.red,fontSize:12,marginBottom:10}}>❌ {mineErr}</div>}
           {!mineLoading && !mineErr && list.length===0 && (
@@ -1316,7 +1350,8 @@ export default function MachSafety({ onBack }) {
                 <div key={x.id} style={{background:C.card,borderRadius:12,padding:"10px 12px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <div onClick={()=>setMineOpen(mineOpen===x.id?null:x.id)} style={{cursor:"pointer"}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>
-                      <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${kindColor[x.kind]||C.accent}20`,color:kindColor[x.kind]||C.accent}}>{x.kind}</span>
+                      <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${kindColor[x.kind]||C.accent}20`,color:kindColor[x.kind]||C.accent}}>{x.kind}</span><span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${kindColor[x.kind]||C.accent}20`,color:kindColor[x.kind]||C.accent}}>{x.kind}</span>
+                      {isCandidate(x) && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${C.gold}25`,color:C.gold}}>🏅 후보</span>}
                       {x.round && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${C.gold}15`,color:C.gold}}>{x.round}회 기출</span>}
                       <span style={{fontSize:10,color:C.muted,marginLeft:"auto"}}>{new Date(x.savedAt).toLocaleString("ko-KR")}</span>
                     </div>
