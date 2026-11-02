@@ -791,7 +791,7 @@ function exportCandidates(items) {
     lines: (x.verify.lines || []).filter(l => l.tag !== "skip").map(l =>
       l.tag === "fact"
         ? { t: "fact", text: l.text, srcType: l.srcType, src: l.src }
-        : { t: "mine", text: l.text }
+         : l.tag === "head" ? { t: "head", text: l.text } : { t: "mine", text: l.text }
     ),
   }));
   if (cands.length === 0) {
@@ -801,6 +801,29 @@ function exportCandidates(items) {
   const d = new Date();
   const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
   downloadFile(`candidates-${stamp}.json`, JSON.stringify(cands, null, 2), "application/json");
+}
+// 후보 답안 1개 → answerBank.js에 붙여넣을 코드 문자열
+function bankCode(x) {
+  const sections = [];
+  let cur = null;
+  (x.verify.lines || []).filter(l => l.tag !== "skip").forEach(l => {
+    if (l.tag === "head") { cur = { h: l.text, lines: [] }; sections.push(cur); return; }
+    if (!cur) { cur = { h: "본문", lines: [] }; sections.push(cur); }
+    cur.lines.push(
+      l.tag === "fact"
+        ? { t: "fact", text: l.text, src: `${l.srcType} ${l.src}`.trim() }
+        : { t: "mine", text: l.text }
+    );
+  });
+  const entry = {
+    title: x.topicTitle,
+    rounds: x.round ? [String(x.round)] : [],
+    status: "sourced",
+    sections,
+    figures: [],
+  };
+  const key = "a" + Date.now().toString(36);
+  return `  ${JSON.stringify(key)}: ${JSON.stringify(entry, null, 2).replace(/\n/g, "\n  ")},\n`;
 }
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────
@@ -1238,6 +1261,7 @@ export default function MachSafety({ onBack }) {
               <div style={{display:"flex",gap:5}}>
                 <button onClick={()=>setVL(i,{tag:"fact"})} style={tagStyle(l.tag==="fact",C.accent)}>사실</button>
                 <button onClick={()=>setVL(i,{tag:"mine"})} style={tagStyle(l.tag==="mine",C.green)}>내 생각</button>
+                                <button onClick={()=>setVL(i,{tag:"head"})} style={tagStyle(l.tag==="head",C.gold)}>제목</button>
                 <button onClick={()=>setVL(i,{tag:"skip"})} style={tagStyle(l.tag==="skip",C.muted)}>제외</button>
               </div>
               {l.tag==="fact" && (
@@ -1368,6 +1392,12 @@ export default function MachSafety({ onBack }) {
                         style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.accent}40`,background:`${C.accent}15`,color:C.highlight,fontSize:11,fontWeight:700,cursor:"pointer"}}>
                         🔍 검증{x.verify?` (${x.verify.status==="sourced"?"출처확인":"초안"})`:""}
                       </button>
+                                          {isCandidate(x) && (
+                        <button onClick={()=>{ try { navigator.clipboard.writeText(bankCode(x)); window.alert("답안은행 코드가 복사되었습니다"); } catch {} }}
+                          style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.gold}40`,background:`${C.gold}15`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                          🏅 은행코드 복사
+                        </button>
+                      )}
                       <button onClick={()=>{ try { navigator.clipboard.writeText(x.text); setMineCopied(x.id); } catch {} }}
                         style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.text,fontSize:11,cursor:"pointer"}}>
                         {mineCopied===x.id?"✓ 복사됨":"📋 복사"}
