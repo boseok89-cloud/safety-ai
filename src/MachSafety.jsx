@@ -832,6 +832,21 @@ function bankCode(x) {
   return `  ${JSON.stringify(key)}: ${JSON.stringify(entry, null, 2).replace(/\n/g, "\n  ")},\n`;
 }
 
+// 교재 줄 중 내 답안에서 비슷한 내용을 못 찾은 줄 (낱말 겹침 기준의 참고용 추정)
+function wordsOf(s) {
+  return s.replace(/[^가-힣A-Za-z0-9]+/g, " ").split(" ").filter(w => w.length >= 2);
+}
+
+function findGaps(refLines, myLines) {
+  const mine = myLines.join(" ").replace(/\s+/g, "");
+  return refLines.filter(r => {
+    const ws = wordsOf(r);
+    if (ws.length < 2) return false;
+    const hit = ws.filter(w => mine.includes(w.length >= 3 ? w.slice(0, 3) : w)).length;
+    return hit / ws.length < 0.4;
+  });
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -896,6 +911,7 @@ export default function MachSafety({ onBack }) {
     const [verifyItem, setVerifyItem] = useState(null);
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
+  const [showRef, setShowRef] = useState(true);
 
   const openVerify = (x) => {
     setVerifyItem(x);
@@ -913,12 +929,14 @@ export default function MachSafety({ onBack }) {
   const saveVerify = async () => {
     const facts = verifyLines.filter(l => l.tag === "fact");
     const okFacts = facts.filter(l => SRC_OK.includes(l.srcType) && l.src.trim() && l.checked);
-    const status = facts.length > 0 && okFacts.length === facts.length ? "sourced" : "draft";
+    const needRef = verifyLines.filter(l => l.tag === "fact" || l.tag === "mine");
+    const crossedOk = needRef.length > 0 && needRef.every(l => l.ref);
+    const status = facts.length > 0 && okFacts.length === facts.length ? "sourced" : (crossedOk ? "crossed" : "draft");
     setVerifyMsg("저장 중...");
     try {
       await updateVerifyApi(verifyItem.id, { status, lines: verifyLines, updatedAt: new Date().toISOString() });
       setMineItems(prev => prev.map(x => x.id === verifyItem.id ? { ...x, verify: { status, lines: verifyLines } } : x));
-      setVerifyMsg(status === "sourced" ? "✅ 저장됨 · 출처확인 완료" : "✅ 저장됨 (아직 초안: 사실 줄의 출처·대조 체크가 남음)");
+        setVerifyMsg(status === "sourced" ? "✅ 저장됨 · 출처확인 완료" : status === "crossed" ? "✅ 저장됨 · 교재대조 완료 (다름·없음 줄은 원문으로 확인하세요)" : "✅ 저장됨 (아직 초안: 줄마다 교재 대조 표시와 사실 줄의 출처 체크가 남음)");
     } catch (e) {
       setVerifyMsg("❌ " + e.message);
     }
@@ -1260,6 +1278,39 @@ export default function MachSafety({ onBack }) {
             </div>
           </div>
 
+                {(() => {
+            const refItems = mineItems.filter(x => x.kind === "교재 필사" && x.topicTitle === verifyItem.topicTitle && x.id !== verifyItem.id);
+            const myLines = verifyLines.filter(l => l.tag !== "skip" && l.tag !== "head").map(l => l.text);
+            const refLines = refItems.flatMap(x => splitLines(x.text));
+            const gaps = findGaps(refLines, myLines);
+            return (
+              <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.orange}40`}}>
+                <div onClick={()=>setShowRef(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.orange,cursor:"pointer"}}>
+                  📖 교재 필사 ({refItems.length}개) {showRef?"▲":"▼"}
+                </div>
+                {refItems.length===0 && (
+                  <div style={{fontSize:11,color:C.muted,marginTop:6,lineHeight:1.6}}>같은 주제로 저장된 교재 필사가 없습니다. 답안연습에서 종류를 '교재 필사'로 저장하면 여기에 나타납니다.</div>
+                )}
+                {showRef && refItems.map(x=>(
+                  <div key={x.id} style={{marginTop:8,padding:"8px 10px",background:"#0d1520",borderRadius:8}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{new Date(x.savedAt).toLocaleString("ko-KR")}{x.memo?` · ${x.memo}`:""}</div>
+                    <div style={{fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text}}>{x.text}</div>
+                  </div>
+                ))}
+                {refItems.length>0 && (
+                  <div style={{marginTop:10}}>
+                    <div style={{fontSize:11,fontWeight:700,color:gaps.length>0?C.red:C.green,marginBottom:4}}>
+                      {gaps.length>0?`⚠ 누락 후보 ${gaps.length}줄 (참고용 자동 추정)`:"✓ 교재 줄이 모두 내 답안과 겹칩니다 (참고용 자동 추정)"}
+                    </div>
+                    {gaps.slice(0,20).map((g,gi)=>(
+                      <div key={gi} style={{fontSize:11,color:C.muted,lineHeight:1.6,padding:"3px 0",borderBottom:`1px solid ${C.border}`}}>• {g}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {verifyLines.map((l,i)=>(
             <div key={i} style={{background:C.card,borderRadius:12,padding:"10px 12px",marginBottom:6,
               border:`1px solid ${l.tag==="fact"?C.accent+"50":l.tag==="mine"?C.green+"50":C.border}`,opacity:l.tag==="skip"?0.5:1}}>
@@ -1270,6 +1321,16 @@ export default function MachSafety({ onBack }) {
                                 <button onClick={()=>setVL(i,{tag:"head"})} style={tagStyle(l.tag==="head",C.gold)}>제목</button>
                 <button onClick={()=>setVL(i,{tag:"skip"})} style={tagStyle(l.tag==="skip",C.muted)}>제외</button>
               </div>
+             {(l.tag==="fact" || l.tag==="mine") && (
+                <div style={{display:"flex",gap:5,marginTop:6}}>
+                  {[["match","교재와 일치",C.green],["diff","교재와 다름",C.red],["none","교재에 없음",C.orange]].map(([v,label,color])=>(
+                    <button key={v} onClick={()=>setVL(i,{ref:l.ref===v?null:v})} style={tagStyle(l.ref===v,color)}>{label}</button>
+                  ))}
+                </div>
+              )}
+              {(l.ref==="diff" || l.ref==="none") && l.tag!=="skip" && (
+                <div style={{fontSize:10,color:C.orange,marginTop:4}}>⚠ 교재와 차이가 있어요 → 법령·고시 원문으로 확인하세요</div>
+              )}
               {l.tag==="fact" && (
                 <div style={{marginTop:8}}>
                   <div style={{display:"flex",gap:5,marginBottom:6}}>
@@ -1397,7 +1458,7 @@ export default function MachSafety({ onBack }) {
                     <div style={{display:"flex",gap:6,marginTop:8}}>
                       <button onClick={()=>openVerify(x)}
                         style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.accent}40`,background:`${C.accent}15`,color:C.highlight,fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                        🔍 검증{x.verify?` (${x.verify.status==="sourced"?"출처확인":"초안"})`:""}
+                        🔍 검증{x.verify?` (${x.verify.status==="sourced"?"출처확인":x.verify.status==="crossed"?"교재대조":"초안"})`:""}
                       </button>
                                           {isCandidate(x) && (
                         <button onClick={()=>{ try { navigator.clipboard.writeText(bankCode(x)); window.alert("답안은행 코드가 복사되었습니다"); } catch {} }}
