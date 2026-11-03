@@ -999,9 +999,7 @@ export default function MachSafety({ onBack }) {
             </div>
           ))}
         </div>
-       
-        </button>
-        <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
+               <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
           style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
 
         <div style={{display:"flex",gap:5,marginBottom:10,overflowX:"auto",paddingBottom:3}}>
