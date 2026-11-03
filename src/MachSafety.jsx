@@ -671,13 +671,19 @@ function gradeAnswer(topic, answer) {
 // ── 내 답안 저장 (서버 /api/answers, 비용 0) ──
 const KINDS = ["교재 필사", "내 말", "혼합"];
 
+// 비밀번호는 서버가 요구할 때만 사용 (자동 입력창 없음). 한글 등이 들어가도 fetch가 깨지지 않게 인코딩
 function getAnswersKey() {
   let k = "";
   try { k = localStorage.getItem("mach_key") || ""; } catch {}
-  if (!k) {
-    k = window.prompt("저장용 비밀번호를 입력하세요") || "";
-    try { if (k) localStorage.setItem("mach_key", k); } catch {}
-  }
+  return encodeURIComponent(k);
+}
+
+function setAnswersKey() {
+  const k = window.prompt("저장용 비밀번호를 입력하세요.\n(영문 입력 상태 확인 / 비우고 확인하면 초기화)") || "";
+  try {
+    if (k) localStorage.setItem("mach_key", k);
+    else localStorage.removeItem("mach_key");
+  } catch {}
   return k;
 }
 
@@ -963,6 +969,10 @@ export default function MachSafety({ onBack }) {
               <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{doneCount}/{totalCount}</span>
             </div>
           </div>
+                <button onClick={()=>openMine("")}
+            style={{width:"100%",padding:"9px",marginBottom:10,borderRadius:10,border:`1px solid ${C.green}60`,background:`${C.green}25`,color:C.green,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            📚 내 답안 수집함
+          </button>
           <div style={{background:"rgba(255,255,255,0.1)",borderRadius:99,height:5}}>
             <div style={{width:`${(doneCount/totalCount)*100}%`,background:`linear-gradient(90deg,${C.accent},${C.gold})`,borderRadius:99,height:"100%",transition:"width 0.5s"}}/>
           </div>
@@ -989,9 +999,7 @@ export default function MachSafety({ onBack }) {
             </div>
           ))}
         </div>
-        <button onClick={()=>openMine("")}
-          style={{width:"100%",padding:"11px",marginBottom:10,borderRadius:12,border:`1px solid ${C.green}40`,background:`${C.green}15`,color:C.green,fontSize:13,fontWeight:700,cursor:"pointer"}}>
-         📚 내 답안 수집함
+       
         </button>
         <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
           style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
@@ -1326,6 +1334,7 @@ export default function MachSafety({ onBack }) {
         <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
           <button onClick={()=>setScreen("home")} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 목록</button>
           <div style={{flex:1,fontSize:13,fontWeight:700}}>📚 내 답안 수집함 ({list.length}/{mineItems.length})</div>
+                    <button onClick={()=>{ setAnswersKey(); openMine(mineSearch); }} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>🔑</button>
           <button onClick={()=>openMine(mineSearch)} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>↻</button>
         </div>
 
