@@ -1,7 +1,11 @@
 // 내 답안 수집함 (Redis REST, 비밀번호 보호). AI 호출 없음 = 비용 0
 export default async function handler(req, res) {
-  if (!process.env.ANSWERS_PASSWORD || req.headers["x-answers-key"] !== process.env.ANSWERS_PASSWORD) {
-    return res.status(401).json({ error: "비밀번호가 맞지 않습니다" });
+  // ANSWERS_PASSWORD 환경변수가 없으면 비밀번호 없이 동작 (운영 전 개발용), 있으면 검사
+  const pw = process.env.ANSWERS_PASSWORD;
+  if (pw) {
+    let sent = "";
+    try { sent = decodeURIComponent(req.headers["x-answers-key"] || ""); } catch { sent = ""; }
+    if (sent !== pw) return res.status(401).json({ error: "비밀번호가 맞지 않습니다" });
   }
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
