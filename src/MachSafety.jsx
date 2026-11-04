@@ -840,11 +840,35 @@ function wordsOf(s) {
 function findGaps(refLines, myLines) {
   const mine = myLines.join(" ").replace(/\s+/g, "");
   return refLines.filter(r => {
+      if (/^\d+\)\s*\S.{0,22}$/.test(r.trim())) return false; // "7)실시 규정에…", "9) 주의 사항" 같은 소제목 줄 제외
     const ws = wordsOf(r);
     if (ws.length < 2) return false;
     const hit = ws.filter(w => mine.includes(w.length >= 3 ? w.slice(0, 3) : w)).length;
     return hit / ws.length < 0.4;
   });
+}
+
+// 답안에서 조문 번호·수치를 뽑는다 (법령명은 아래 목록과 일치할 때만 자동 인식)
+const LAW_NAMES = ["산업안전보건기준에 관한 규칙","산업안전보건법 시행규칙","산업안전보건법 시행령","산업안전보건법","중대재해 처벌 등에 관한 법률 시행령","중대재해 처벌 등에 관한 법률","중대재해처벌법 시행령","중대재해처벌법","위험물안전관리법","고압가스 안전관리법","승강기 안전관리법","화학물질관리법"];
+const LAW_SORTED = LAW_NAMES.map(n => ({ n, c: n.replace(/\s/g, "") })).sort((a, b) => b.c.length - a.c.length);
+
+function extractCites(text) {
+  const out = [];
+  const ctxOf = (i, len) => text.slice(Math.max(0, i - 28), i + len + 28).replace(/\s+/g, " ").trim();
+  let m;
+  const artRe = /제\s*\d+\s*조(?:\s*의\s*\d+)?(?:\s*제\s*\d+\s*항)?/g;
+  while ((m = artRe.exec(text)) !== null) {
+    const art = m[0].replace(/\s+/g, "");
+    const before = text.slice(Math.max(0, m.index - 40), m.index).replace(/[\s「」『』()]/g, "");
+    const law = LAW_SORTED.find(l => before.endsWith(l.c));
+    out.push({ pos: m.index, key: "a" + m.index + ":" + art, kind: "조문", label: (law ? law.n + " " : "") + art, ctx: ctxOf(m.index, m[0].length) });
+  }
+  const numRe = /\d+(?:\.\d+)?\s*(?:개월|퍼센트|%|단계|가지|시간|일|년|명|개|회|분|mm|cm|kg|dB|Hz|℃|MPa|kPa|m|t)(?![a-zA-Z])/g;
+  while ((m = numRe.exec(text)) !== null) {
+    out.push({ pos: m.index, key: "n" + m.index + ":" + m[0].replace(/\s+/g, ""), kind: "수치", label: m[0].replace(/\s+/g, ""), ctx: ctxOf(m.index, m[0].length) });
+  }
+  out.sort((a, b) => a.pos - b.pos);
+  return out.slice(0, 60);
 }
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────
@@ -912,6 +936,14 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const [citeData, setCiteData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mach_cites") || "{}"); } catch { return {}; }
+  });
+  const setCite = (key, patch) => {
+    const next = { ...citeData, [key]: { ...(citeData[key] || {}), ...patch } };
+    setCiteData(next);
+    try { localStorage.setItem("mach_cites", JSON.stringify(next)); } catch {}
+  };
   const [rubricOk, setRubricOk] = useState(() => {
     try { return JSON.parse(localStorage.getItem("mach_rubric_ok") || "{}"); } catch { return {}; }
   });
@@ -1351,6 +1383,52 @@ export default function MachSafety({ onBack }) {
                       <label style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:C.text,marginTop:3,cursor:"pointer"}}>
                         <input type="checkbox" checked={!!rubricOk[key]} onChange={()=>toggleRubricOk(key)}/> 원문 확정
                       </label>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+         {(() => {
+            const cites = extractCites(verifyItem.text || "");
+            const keyOf = (c) => verifyItem.id + "|" + c.key;
+            const done = cites.filter(c => citeData[keyOf(c)] && citeData[keyOf(c)].res).length;
+            const bad = cites.filter(c => citeData[keyOf(c)] && citeData[keyOf(c)].res === "bad").length;
+            return (
+              <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.accent}40`}}>
+                <div style={{fontSize:12,fontWeight:800,color:C.highlight,marginBottom:4}}>🔢 인용 확인 (조문 번호·수치)</div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:8,lineHeight:1.6}}>
+                  답안에서 조문 번호와 수치를 자동으로 뽑았어요. 원문과 대조해 일치 여부를 직접 확정하세요.<br/>
+                  {cites.length}개 중 확정 {done}개 · 불일치 {bad}개
+                </div>
+                {cites.length===0 && <div style={{fontSize:11,color:C.muted}}>인용된 조문·수치가 없습니다. 중요한 사실은 조문 번호와 함께 쓰면 검증할 수 있어요.</div>}
+                {cites.map(c => {
+                  const k = keyOf(c);
+                  const d = citeData[k] || {};
+                  const src = d.src !== undefined ? d.src : (c.kind==="조문" ? c.label : "");
+                  return (
+                    <div key={c.key} style={{padding:"8px 0",borderTop:`1px solid ${C.border}`}}>
+                      <div style={{fontSize:12,fontWeight:700,color:C.gold}}>[{c.kind}] {c.label}</div>
+                      <div style={{fontSize:11,color:C.muted,lineHeight:1.6,margin:"2px 0 6px"}}>…{c.ctx}…</div>
+                      <input value={src} onChange={e=>setCite(k,{src:e.target.value})} placeholder={c.kind==="조문"?"예: 산업안전보건법 제36조":"출처 (법령명 조문 또는 고시명)"}
+                        style={{width:"100%",padding:"7px 9px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:11,outline:"none",boxSizing:"border-box"}}/>
+                      <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
+                        <button onClick={()=>{
+                          const s=(src||"").trim();
+                          if(!/(법|령|규칙|고시|지침)/.test(s) || !/제\s*\d+\s*조/.test(s)) { window.alert("법령명과 조문을 함께 적어주세요. 예: 산업안전보건법 제36조 (수치는 🔎 검색을 쓰세요)"); return; }
+                          const isNotice = /(고시|지침)/.test(s) && !/(법|규칙|령)\s*제/.test(s);
+                          window.open(isNotice ? lawUrl("고시", s.replace(/\s*제\s*\d+\s*조.*$/, "")) : lawUrl("법령", s), "_blank");
+                        }} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.highlight,fontSize:11,cursor:"pointer"}}>🔗 원문 열기</button>
+                        <button onClick={()=>window.open("https://www.google.com/search?q="+encodeURIComponent("site:law.go.kr "+((src||"").trim()||c.label)),"_blank")}
+                          style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>🔎 검색</button>
+                      </div>
+                      <div style={{display:"flex",gap:5,marginTop:6}}>
+                        {[["ok","✅ 일치",C.green],["bad","❌ 불일치",C.red],["skip","➖ 해당 없음",C.muted]].map(([v,label,color])=>(
+                          <button key={v} onClick={()=>setCite(k,{res:d.res===v?null:v})} style={tagStyle(d.res===v,color)}>{label}</button>
+                        ))}
+                      </div>
+                      {d.res==="bad" && <div style={{fontSize:10,color:C.red,marginTop:4}}>⚠ 답안을 원문에 맞게 고쳐서 다시 저장하세요</div>}
                     </div>
                   );
                 })}
