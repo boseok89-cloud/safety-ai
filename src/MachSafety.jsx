@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { EXAM_BANK } from "./ExamBank";
 import AnswerView from "./AnswerView";
 import { ANSWER_BANK } from "./answerBank";
-
+import { RUBRICS, checkRubric } from "./rubrics";
 const C = {
   bg:"#0a0e1a", surface:"#111827", card:"#1a2235", border:"#1e3a5f",
   accent:"#3b82f6", gold:"#f59e0b", green:"#10b981", red:"#ef4444",
@@ -912,6 +912,14 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const [rubricOk, setRubricOk] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mach_rubric_ok") || "{}"); } catch { return {}; }
+  });
+  const toggleRubricOk = (key) => {
+    const next = { ...rubricOk, [key]: !rubricOk[key] };
+    setRubricOk(next);
+    try { localStorage.setItem("mach_rubric_ok", JSON.stringify(next)); } catch {}
+  };
 
   const openVerify = (x) => {
     setVerifyItem(x);
@@ -1307,6 +1315,45 @@ export default function MachSafety({ onBack }) {
                     ))}
                   </div>
                 )}
+              </div>
+            );
+          })()}
+
+       {(() => {
+            const rb = Object.values(RUBRICS).find(r => r.title === verifyItem.topicTitle);
+            if (!rb) {
+              return (
+                <div style={{background:C.card,borderRadius:14,padding:"10px 14px",marginBottom:10,border:`1px solid ${C.border}`,fontSize:11,color:C.muted}}>
+                  📋 이 주제의 기준표가 아직 없습니다.
+                </div>
+              );
+            }
+            const res = checkRubric(rb, verifyItem.text);
+            const got = res.filter(r => r.hit).length;
+            const conf = res.filter(r => rubricOk[rb.id + ":" + r.id]);
+            const confGot = conf.filter(r => r.hit).length;
+            return (
+              <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.gold}40`}}>
+                <div style={{fontSize:12,fontWeight:800,color:C.gold,marginBottom:4}}>📋 기준표 점검 (초안: 원문 확정 전 요소 포함)</div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:8,lineHeight:1.6}}>
+                  전체 {got}/{res.length} 포함 · 원문 확정한 요소 {confGot}/{conf.length} 포함<br/>
+                  '포함'은 키워드가 들어갔다는 뜻이고, 내용이 맞다는 뜻은 아닙니다.
+                </div>
+                {res.map(r => {
+                  const key = rb.id + ":" + r.id;
+                  return (
+                    <div key={r.id} style={{padding:"7px 0",borderTop:`1px solid ${C.border}`}}>
+                      <div style={{fontSize:12,color:r.hit?C.green:C.red,fontWeight:700}}>
+                        {r.hit?"✅ 포함":"⬜ 누락"} · {r.id}. {r.name}
+                        {r.conflict && <span style={{color:C.orange,fontSize:10,marginLeft:6}}>⚠ 교재·Claude 서술 다름</span>}
+                      </div>
+                      <div style={{fontSize:10,color:C.muted,marginTop:2}}>출처: {r.origin} · 원문에서 확인: {r.check}</div>
+                      <label style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:C.text,marginTop:3,cursor:"pointer"}}>
+                        <input type="checkbox" checked={!!rubricOk[key]} onChange={()=>toggleRubricOk(key)}/> 원문 확정
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
             );
           })()}
