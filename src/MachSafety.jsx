@@ -637,8 +637,32 @@ function findRelatedExams(topic, limit=3) {
 function findAnswerKey(topic) {
   return Object.keys(ANSWER_BANK).find(k => ANSWER_BANK[k].title === topic.title) || null;
 }
+function gradeByRubric(rb, answer) {
+  const res = checkRubric(rb, answer);
+  const got = res.filter(r => r.hit);
+  const missed = res.filter(r => !r.hit);
+  const artCount = extractCites(answer).filter(c => c.kind === "조문").length;
+  const hasIntro = /개요|서론|정의/.test(answer);
+  const hasEnd = /결론/.test(answer);
+  const score = Math.round((got.length / res.length) * 70) + (hasIntro ? 5 : 0) + (hasEnd ? 5 : 0) + Math.min(10, artCount * 5) + Math.min(10, Math.round((answer.length / 700) * 10));
+  const grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+  const tips = [];
+  if (missed.length) tips.push(`기준표 요소 ${missed.length}개가 빠졌습니다.`);
+  if (artCount === 0) tips.push("중요한 사실은 조문 번호와 함께 쓰세요.");
+  if (!hasIntro) tips.push("개요(정의)가 없습니다.");
+  if (!hasEnd) tips.push("결론이 없습니다.");
+  if (answer.length < 500) tips.push(`분량이 짧습니다(${answer.length}자).`);
+  return {
+    score, grade,
+    strengths: `기준표 ${got.length}/${res.length} 요소 포함 · 조문 인용 ${artCount}개 · ${answer.length}자`,
+    improvements: tips.length ? tips.join(" ") : "기준표 요소·구조·분량 충족. 인용한 조문·수치는 원문 대조로 확정하세요.",
+    keywordsMissed: missed.map(r => r.name),
+  };
+}
 
 function gradeAnswer(topic, answer) {
+  const rubricForTopic = Object.values(RUBRICS).find(r => r.title === topic.title);
+  if (rubricForTopic) return gradeByRubric(rubricForTopic, answer);
   const norm = s => s.replace(/\s/g, "");
   const text = norm(answer);
   const missed = topic.keywords.filter(kw => {
@@ -783,8 +807,58 @@ function lawUrl(type, src) {
 }
 const CAND_KINDS = ["내 말"]; // 모범답안 후보로 인정하는 종류 (교재 필사·혼합 제외)
 
+function readLS(key) {
+  try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; }
+}
+
+// 후보 조건 점검 (기준표 원문 확정 + 인용 확정). 결과: { ok, reasons }
+function candidateInfo(x) {
+  const reasons = [];
+  if (!CAND_KINDS.includes(x.kind)) reasons.push("종류가 '내 말'이 아님");
+  if (x.verify && x.verify.status === "sourced" && x.verify.lines && x.verify.lines.length) {
+    return { ok: reasons.length === 0, reasons };
+  }
+  const rb = Object.values(RUBRICS).find(r => r.title === x.topicTitle);
+  if (!rb) { reasons.push("이 주제의 기준표가 없음"); return { ok: false, reasons }; }
+  const rubricOk = readLS("mach_rubric_ok");
+  const citeData = readLS("mach_cites");
+  const res = checkRubric(rb, x.text || "");
+  const unconfirmed = res.filter(r => !rubricOk[rb.id + ":" + r.id]);
+  const missing = res.filter(r => !r.hit);
+  if (unconfirmed.length) reasons.push(`원문 확정이 안 된 기준 요소 ${unconfirmed.length}개`);
+  if (missing.length) reasons.push(`누락된 기준 요소 ${missing.length}개`);
+  const cites = extractCites(x.text || "");
+  const pending = cites.filter(c => { const d = citeData[x.id + "|" + c.key]; return !d || !d.res; });
+  const bad = cites.filter(c => { const d = citeData[x.id + "|" + c.key]; return d && d.res === "bad"; });
+  if (cites.length === 0) reasons.push("인용(조문·수치)이 하나도 없음");
+  if (pending.length) reasons.push(`확정 안 된 인용 ${pending.length}개`);
+  if (bad.length) reasons.push(`불일치로 표시된 인용 ${bad.length}개`);
+  return { ok: reasons.length === 0, reasons };
+}
+
+// 후보 답안을 줄 목록으로 (확정된 인용이 있는 줄은 사실, 번호가 붙은 짧은 줄은 제목)
+function candidateLines(x) {
+  if (x.verify && x.verify.lines && x.verify.lines.length) return x.verify.lines.filter(l => l.tag !== "skip");
+  const citeData = readLS("mach_cites");
+  const cites = extractCites(x.text || "");
+  return splitLines(x.text || "").map(t => {
+    if (/^\s*\d+\s*[.)]\s*\S/.test(t) && t.length <= 30) return { tag: "head", text: t };
+    const flat = t.replace(/\s/g, "");
+    const hit = cites.find(c => {
+      const d = citeData[x.id + "|" + c.key];
+      return d && d.res === "ok" && flat.includes(c.key.split(":")[1]);
+    });
+    if (hit) {
+      const d = citeData[x.id + "|" + hit.key];
+      const src = ((d.src !== undefined ? d.src : (hit.kind === "조문" ? hit.label : "")) || "").trim();
+      if (src) return { tag: "fact", text: t, srcType: /(고시|지침)/.test(src) ? "고시" : "법령", src };
+    }
+    return { tag: "mine", text: t };
+  });
+}
+
 function isCandidate(x) {
-  return !!(x.verify && x.verify.status === "sourced" && CAND_KINDS.includes(x.kind));
+  return candidateInfo(x).ok;
 }
 
 function exportCandidates(items) {
@@ -794,7 +868,7 @@ function exportCandidates(items) {
     q: x.q,
     kind: x.kind,
     savedAt: x.savedAt,
-    lines: (x.verify.lines || []).filter(l => l.tag !== "skip").map(l =>
+    lines: candidateLines(x).map(l =>
       l.tag === "fact"
         ? { t: "fact", text: l.text, srcType: l.srcType, src: l.src }
          : l.tag === "head" ? { t: "head", text: l.text } : { t: "mine", text: l.text }
@@ -812,7 +886,7 @@ function exportCandidates(items) {
 function bankCode(x) {
   const sections = [];
   let cur = null;
-  (x.verify.lines || []).filter(l => l.tag !== "skip").forEach(l => {
+  candidateLines(x).forEach(l => {
     if (l.tag === "head") { cur = { h: l.text, lines: [] }; sections.push(cur); return; }
     if (!cur) { cur = { h: "본문", lines: [] }; sections.push(cur); }
     cur.lines.push(
@@ -1579,6 +1653,9 @@ export default function MachSafety({ onBack }) {
                     </div>
                     <div style={{fontSize:10,color:C.muted,marginTop:4}}>{x.text.length}자 · {mineOpen===x.id?"탭하면 접기":"탭하면 전체 보기"}</div>
                   </div>
+              {mineOpen===x.id && x.kind==="내 말" && !isCandidate(x) && (
+                    <div style={{fontSize:10,color:C.muted,marginTop:6,lineHeight:1.6}}>🏅 후보 조건 미충족: {candidateInfo(x).reasons.join(" · ")}</div>
+                  )}
                   {mineOpen===x.id && (
                     <div style={{display:"flex",gap:6,marginTop:8}}>
                       <button onClick={()=>openVerify(x)}
