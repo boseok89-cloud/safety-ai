@@ -1,4 +1,19 @@
 // 법제처 조회 프록시 (OC는 서버에만 보관하고 응답에서 가림). AI 호출 없음 = 비용 0
+// 법령·고시 본문 JSON에서 조문·항·호·목 내용만 순서대로 뽑는다
+function flattenLaw(node, out) {
+  if (node == null || typeof node !== "object") return;
+  if (Array.isArray(node)) { node.forEach((n) => flattenLaw(n, out)); return; }
+  for (const [k, v] of Object.entries(node)) {
+    if (/(조문|항|호|목)내용$/.test(k)) {
+      const parts = [];
+      const grab = (x) => { if (typeof x === "string") parts.push(x); else if (Array.isArray(x)) x.forEach(grab); };
+      grab(v);
+      const s = parts.join("\n").trim();
+      if (s) out.push(s);
+    } else if (v && typeof v === "object") flattenLaw(v, out);
+  }
+}
+
 export default async function handler(req, res) {
   const oc = process.env.LAW_OC;
   if (!oc) return res.status(500).json({ error: "LAW_OC 환경변수가 없습니다 (Vercel 설정과 Redeploy 확인)" });
@@ -38,7 +53,14 @@ export default async function handler(req, res) {
 
   const text = (await r.text()).split(oc).join("***OC***");
   try {
-    return res.status(200).json({ ok: true, upstreamStatus: r.status, data: JSON.parse(text) });
+    const data = JSON.parse(text);
+    if (mode === "detail" && q.format === "text") {
+      const lines = [];
+      flattenLaw(data, lines);
+      const uniq = lines.filter((s, i) => s !== lines[i - 1]);
+      return res.status(200).json({ ok: true, upstreamStatus: r.status, lines: uniq, ...(uniq.length ? {} : { data }) });
+    }
+    return res.status(200).json({ ok: true, upstreamStatus: r.status, data });
   } catch {
     return res.status(200).json({ ok: false, upstreamStatus: r.status, contentType: r.headers.get("content-type"), preview: text.slice(0, 600) });
   }
