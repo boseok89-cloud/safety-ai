@@ -968,6 +968,49 @@ async function statePushApi(batch) {
   } catch {}
 }
 
+// ── 법제처 조문 보기 (/api/law) ──
+async function lawApi(params) {
+  const res = await fetch("/api/law?" + new URLSearchParams(params).toString(), { headers: { "x-answers-key": getAnswersKey() } });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok || d.ok === false) throw new Error(d.error || ("법제처 응답 오류" + (d.preview ? ": " + String(d.preview).slice(0, 120) : "")));
+  return d;
+}
+
+async function fetchLawText(src) {
+  const s = (src || "").trim();
+  const m = s.match(/^(.+?)\s*제\s*(\d+)\s*조(?:\s*의\s*(\d+))?/);
+  if (!m) throw new Error("출처 칸에 법령명과 조문을 함께 적어주세요. 예: 산업안전보건법 제36조");
+  const name = m[1].replace(/[「」『』]/g, "").trim();
+  const art = parseInt(m[2], 10);
+  const branch = m[3] ? parseInt(m[3], 10) : 0;
+  const jo = String(art).padStart(4, "0") + String(branch).padStart(2, "0");
+  const artLabel = `제${art}조${branch ? "의" + branch : ""}`;
+  const compact = name.replace(/\s/g, "");
+  if (/(법|령|규칙)$/.test(compact)) {
+    const sr = await lawApi({ mode: "search", target: "law", query: name, display: "10" });
+    const list = [].concat((sr.data.LawSearch || {}).law || []);
+    const hit = list.find(x => (x["법령명한글"] || "").replace(/\s/g, "") === compact) || list[0];
+    if (!hit) throw new Error("법령을 찾지 못했습니다: " + name);
+    const dr = await lawApi({ mode: "detail", target: "law", ID: hit["법령ID"], JO: jo, format: "text" });
+    return { title: `${hit["법령명한글"]} ${artLabel}`, meta: `시행 ${hit["시행일자"]} · ${hit["제개정구분명"]} · 공포번호 ${hit["공포번호"]}`, lines: dr.lines || [], raw: dr.data };
+  }
+  const sr = await lawApi({ mode: "search", target: "admrul", query: name, display: "10" });
+  const list = [].concat((sr.data.AdmRulSearch || {}).admrul || []);
+  const hit = list.find(x => (x["행정규칙명"] || "").replace(/\s/g, "") === compact) || list[0];
+  if (!hit) throw new Error("고시를 찾지 못했습니다: " + name);
+  const dr = await lawApi({ mode: "detail", target: "admrul", ID: hit["행정규칙일련번호"], format: "text" });
+  let lines = dr.lines || [];
+  const idx = lines.findIndex(l => new RegExp("^제\\s*" + art + "\\s*조(?!\\s*의)\\s*[(（]").test(l.trim()));
+  if (idx >= 0) {
+    let end = lines.length;
+    for (let i = idx + 1; i < lines.length; i++) {
+      if (/^제\s*\d+\s*조(?:\s*의\s*\d+)?\s*[(（]/.test(lines[i].trim())) { end = i; break; }
+    }
+    lines = lines.slice(idx, end);
+  }
+  return { title: `${hit["행정규칙명"]} ${artLabel}`, meta: `시행 ${hit["시행일자"]} · 고시 제${hit["발령번호"]}호 · ${hit["제개정구분명"]}`, lines, raw: dr.data };
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1033,6 +1076,12 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const [lawView, setLawView] = useState(null);
+  const showLaw = async (key, src) => {
+    setLawView({ key, loading: true });
+    try { const r = await fetchLawText(src); setLawView({ key, ...r }); }
+    catch (e) { setLawView({ key, err: e.message }); }
+  };
   const [citeData, setCiteData] = useState(() => {
     try { return JSON.parse(localStorage.getItem("mach_cites") || "{}"); } catch { return {}; }
   });
@@ -1551,6 +1600,8 @@ export default function MachSafety({ onBack }) {
                           const isNotice = /(고시|지침)/.test(s) && !/(법|규칙|령)\s*제/.test(s);
                           window.open(isNotice ? lawUrl("고시", s.replace(/\s*제\s*\d+\s*조.*$/, "")) : lawUrl("법령", s), "_blank");
                         }} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.highlight,fontSize:11,cursor:"pointer"}}>🔗 원문 열기</button>
+                      <button onClick={()=>{ const t=(src||"").trim()||c.label; if(!/제\s*\d+\s*조/.test(t)){ window.alert("법령명과 조문이 있는 항목만 앱에서 볼 수 있어요. 출처 칸에 예: 산업안전보건법 제36조"); return; } showLaw(k, t); }}
+                          style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.gold}60`,background:`${C.gold}15`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>📄 앱에서 보기</button>
                         <button onClick={()=>window.open("https://www.google.com/search?q="+encodeURIComponent("site:law.go.kr "+((src||"").trim()||c.label)),"_blank")}
                           style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>🔎 검색</button>
                       </div>
@@ -1559,7 +1610,23 @@ export default function MachSafety({ onBack }) {
                           <button key={v} onClick={()=>setCite(k,{res:d.res===v?null:v})} style={tagStyle(d.res===v,color)}>{label}</button>
                         ))}
                       </div>
-                      {d.res==="bad" && <div style={{fontSize:10,color:C.red,marginTop:4}}>⚠ 답안을 원문에 맞게 고쳐서 다시 저장하세요</div>}
+                    {d.res==="bad" && <div style={{fontSize:10,color:C.red,marginTop:4}}>⚠ 답안을 원문에 맞게 고쳐서 다시 저장하세요</div>}
+                      {lawView && lawView.key===k && (
+                        <div style={{marginTop:8,padding:"10px 12px",background:"#0d1520",border:`1px solid ${C.gold}40`,borderRadius:10}}>
+                          {lawView.loading && <div style={{fontSize:11,color:C.muted}}>법제처에서 불러오는 중...</div>}
+                          {lawView.err && <div style={{fontSize:11,color:C.red}}>❌ {lawView.err}</div>}
+                          {lawView.title && (
+                            <div>
+                              <div style={{fontSize:12,fontWeight:700,color:C.gold}}>{lawView.title}</div>
+                              <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{lawView.meta} · 법제처 국가법령정보센터 현행 기준</div>
+                              {lawView.lines.length>0
+                                ? <div style={{fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text,maxHeight:320,overflowY:"auto"}}>{lawView.lines.join("\n")}</div>
+                                : <pre style={{fontSize:10,color:C.muted,whiteSpace:"pre-wrap",maxHeight:240,overflow:"auto"}}>{JSON.stringify(lawView.raw||{},null,1).slice(0,3000)}</pre>}
+                            </div>
+                          )}
+                          <button onClick={()=>setLawView(null)} style={{marginTop:6,padding:"4px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:10,cursor:"pointer"}}>닫기</button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
