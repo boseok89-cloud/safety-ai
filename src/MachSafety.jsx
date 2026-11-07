@@ -945,6 +945,29 @@ function extractCites(text) {
   return out.slice(0, 60);
 }
 
+// ── 확정·진도 기록 서버 동기화 (/api/state) ──
+async function stateGetApi() {
+  const res = await fetch("/api/state", { headers: { "x-answers-key": getAnswersKey() } });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "기록 불러오기 실패");
+  return d;
+}
+
+async function statePushApi(batch) {
+  try {
+    const keys = Object.keys(batch);
+    for (let i = 0; i < keys.length; i += 150) {
+      const part = {};
+      keys.slice(i, i + 150).forEach(k => { part[k] = batch[k]; });
+      await fetch("/api/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-answers-key": getAnswersKey() },
+        body: JSON.stringify({ batch: part }),
+      });
+    }
+  } catch {}
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1016,7 +1039,8 @@ export default function MachSafety({ onBack }) {
   const setCite = (key, patch) => {
     const next = { ...citeData, [key]: { ...(citeData[key] || {}), ...patch } };
     setCiteData(next);
-    try { localStorage.setItem("mach_cites", JSON.stringify(next)); } catch {}
+      try { localStorage.setItem("mach_cites", JSON.stringify(next)); } catch {}
+    statePushApi({ ["c:" + key]: next[key] });
   };
   const [rubricOk, setRubricOk] = useState(() => {
     try { return JSON.parse(localStorage.getItem("mach_rubric_ok") || "{}"); } catch { return {}; }
@@ -1025,6 +1049,7 @@ export default function MachSafety({ onBack }) {
     const next = { ...rubricOk, [key]: !rubricOk[key] };
     setRubricOk(next);
     try { localStorage.setItem("mach_rubric_ok", JSON.stringify(next)); } catch {}
+    statePushApi({ ["r:" + key]: !!next[key] });
   };
 
   const openVerify = (x) => {
@@ -1059,10 +1084,42 @@ export default function MachSafety({ onBack }) {
     try { const p = JSON.parse(localStorage.getItem("mach_prog")||"{}"); setProgress(p); } catch {}
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const d = await stateGetApi();
+        const server = d.fields || {};
+        const prog = readLS("mach_prog");
+        const rub = readLS("mach_rubric_ok");
+        const cit = readLS("mach_cites");
+        const push = {};
+        Object.keys(prog).forEach(id => { if (prog[id] && server["p:" + id] === undefined) push["p:" + id] = true; });
+        Object.keys(rub).forEach(k => { if (rub[k] && server["r:" + k] === undefined) push["r:" + k] = true; });
+        Object.keys(cit).forEach(k => { if (cit[k] && (cit[k].res || cit[k].src) && server["c:" + k] === undefined) push["c:" + k] = cit[k]; });
+        Object.keys(server).forEach(f => {
+          const v = server[f];
+          if (f.startsWith("p:")) prog[f.slice(2)] = !!v;
+          else if (f.startsWith("r:")) rub[f.slice(2)] = !!v;
+          else if (f.startsWith("c:")) cit[f.slice(2)] = v;
+        });
+        try {
+          localStorage.setItem("mach_prog", JSON.stringify(prog));
+          localStorage.setItem("mach_rubric_ok", JSON.stringify(rub));
+          localStorage.setItem("mach_cites", JSON.stringify(cit));
+        } catch {}
+        setProgress(prog);
+        setRubricOk(rub);
+        setCiteData(cit);
+        if (Object.keys(push).length) await statePushApi(push);
+      } catch {}
+    })();
+  }, []);
+
   const markDone = (id) => {
     const next = {...progress, [id]:true};
     setProgress(next);
     try { localStorage.setItem("mach_prog", JSON.stringify(next)); } catch {}
+    statePushApi({ ["p:" + id]: true });
   };
 
   const filtered = TOPICS.filter(t => {
