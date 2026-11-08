@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import { EXAM_BANK } from "./ExamBank";
+import { EXAM_FIX } from "./ExamFix";
 import AnswerView from "./AnswerView";
 import { ANSWER_BANK } from "./answerBank";
 import { RUBRICS, checkRubric } from "./rubrics";
+// 기출 합본: 원본에서 다시 옮긴 회차(EXAM_FIX)는 기존 ExamBank의 같은 회차를 대체
+const FIX_ROUNDS = new Set(EXAM_FIX.map(e => String(e.round)));
+const EXAM_ALL = [...EXAM_BANK.filter(e => !FIX_ROUNDS.has(String(e.round))), ...EXAM_FIX];
+
 const C = {
   bg:"#0a0e1a", surface:"#111827", card:"#1a2235", border:"#1e3a5f",
   accent:"#3b82f6", gold:"#f59e0b", green:"#10b981", red:"#ef4444",
@@ -622,7 +627,7 @@ function cleanQ(q) {
 }
 function findRelatedExams(topic, limit=3) {
   const searchTerms = [topic.title, ...topic.keywords.slice(0,3)];
-  const scored = EXAM_BANK.map(e => {
+ const scored = EXAM_ALL.map(e => {
     let score = 0;
     searchTerms.forEach(term => {
       const cleaned = term.replace(/\([^)]*\)/g,"").trim();
@@ -1211,7 +1216,7 @@ export default function MachSafety({ onBack }) {
             <div style={{fontSize:26}}>⚙️</div>
             <div style={{flex:1}}>
               <div style={{fontSize:16,fontWeight:900,color:"#fff"}}>기계안전기술사</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>200문제 · 실제기출{EXAM_BANK.length}개 · 모의채점</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>200문제 · 실제기출{EXAM_ALL.length}개 · 모의채점</div>
             </div>
             <div style={{background:`${C.gold}20`,border:`1px solid ${C.gold}40`,borderRadius:8,padding:"4px 10px"}}>
               <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{doneCount}/{totalCount}</span>
