@@ -4,6 +4,7 @@ import { EXAM_FIX } from "./ExamFix";
 import AnswerView from "./AnswerView";
 import { ANSWER_BANK } from "./answerBank";
 import { RUBRICS, checkRubric } from "./rubrics";
+import DrawPad from "./DrawPad";
 // 기출 합본: 원본에서 다시 옮긴 회차(EXAM_FIX)는 기존 ExamBank의 같은 회차를 대체
 const FIX_ROUNDS = new Set(EXAM_FIX.map(e => String(e.round)));
 const EXAM_ALL = [...EXAM_BANK.filter(e => !FIX_ROUNDS.has(String(e.round))), ...EXAM_FIX];
@@ -1026,6 +1027,24 @@ async function fetchLawText(src) {
   return { title: `${hit["행정규칙명"]} ${artLabel}`, meta: `시행 ${hit["시행일자"]} · 고시 제${hit["발령번호"]}호 · ${hit["제개정구분명"]}`, lines, raw: dr.data };
 }
 
+// ── 답안 그림 저장 (/api/figs) ──
+async function saveFigsApi(id, figs) {
+  const res = await fetch("/api/figs", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "x-answers-key": getAnswersKey() },
+    body: JSON.stringify({ id, figs }),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "그림 저장 실패");
+}
+
+async function loadFigsApi(id) {
+  const res = await fetch("/api/figs?id=" + encodeURIComponent(id), { headers: { "x-answers-key": getAnswersKey() } });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "그림 불러오기 실패");
+  return d;
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1047,7 +1066,7 @@ export default function MachSafety({ onBack }) {
     if (!answer.trim()) return;
     setSaveMsg("저장 중...");
     try {
-      await saveAnswerApi({
+      const saved = await saveAnswerApi({
         topicId: selectedTopic.id,
         topicTitle: selectedTopic.title,
         round: examQ ? examQ.round : null,
@@ -1055,7 +1074,9 @@ export default function MachSafety({ onBack }) {
         kind: saveKind,
         text: answer,
         memo: saveMemo,
+        figCount: figs.length,
       });
+      if (figs.length) { await saveFigsApi(saved.id, figs); setFigs([]); }
       setSaveMsg("✅ 저장됨");
       setSaveMemo("");
     } catch (e) {
@@ -1091,6 +1112,15 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const [figs, setFigs] = useState([]);
+  const [showDraw, setShowDraw] = useState(false);
+  const [mineFigs, setMineFigs] = useState({});
+  useEffect(() => {
+    if (!mineOpen) return;
+    const it = mineItems.find(x => x.id === mineOpen);
+    if (!it || !it.figCount || mineFigs[mineOpen]) return;
+    loadFigsApi(mineOpen).then(d => setMineFigs(prev => ({ ...prev, [mineOpen]: d.figs || [] }))).catch(() => {});
+  }, [mineOpen, mineItems, mineFigs]);
   const [examSearch, setExamSearch] = useState("");
   const [lawView, setLawView] = useState(null);
   const showLaw = async (key, src) => {
@@ -1397,7 +1427,7 @@ export default function MachSafety({ onBack }) {
   if (screen === "write" && selectedTopic) return (
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
       <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
-           <button onClick={()=>{setExamQ(null);setScreen("card");}} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 카드</button>
+           <button onClick={()=>{setExamQ(null);setFigs([]);setScreen("card");}} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 카드</button>
         <div style={{flex:1,fontSize:13,fontWeight:700}}>✍️ 답안 연습</div>
       </div>
 
@@ -1450,6 +1480,24 @@ export default function MachSafety({ onBack }) {
               📚 이 문제의 내 답안 보기
             </button>
           </div>
+        </div>
+
+        <div style={{background:C.card,borderRadius:14,padding:"12px",marginBottom:12,border:`1px solid ${C.border}`}}>
+          <div onClick={()=>setShowDraw(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.highlight,cursor:"pointer"}}>
+            ✏️ 그림 그리기 연습 {showDraw?"▲":"▼"} {figs.length>0 && <span style={{color:C.green}}>· 추가된 그림 {figs.length}장</span>}
+          </div>
+          {showDraw && <DrawPad onAdd={(data)=>setFigs(prev=>[...prev,{data,caption:""}].slice(0,3))} />}
+          {figs.map((f,i)=>(
+            <div key={i} style={{marginTop:8,padding:8,background:"#0d1520",borderRadius:8}}>
+              <img src={f.data} alt="" style={{maxWidth:"100%",borderRadius:6,background:"#fff"}}/>
+              <div style={{display:"flex",gap:6,marginTop:6}}>
+                <input value={f.caption} onChange={e=>setFigs(prev=>prev.map((g,j)=>j===i?{...g,caption:e.target.value.slice(0,100)}:g))} placeholder="캡션 (예: 욕조곡선)"
+                  style={{flex:1,padding:"7px 9px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0b1220",color:C.text,fontSize:11,outline:"none"}}/>
+                <button onClick={()=>setFigs(prev=>prev.filter((_,j)=>j!==i))} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.red}40`,background:`${C.red}10`,color:C.red,fontSize:11,cursor:"pointer"}}>🗑</button>
+              </div>
+            </div>
+          ))}
+          {figs.length>0 && <div style={{fontSize:10,color:C.muted,marginTop:6}}>그림은 아래 💾 내 답안 저장을 누를 때 답안과 같이 저장돼요 (최대 3장). 그림만 저장하려면 답안란에 한 줄(예: "욕조곡선 도시")을 적어 주세요.</div>}
         </div>
 
         {!gradeResult && (
@@ -1802,7 +1850,8 @@ export default function MachSafety({ onBack }) {
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${kindColor[x.kind]||C.accent}20`,color:kindColor[x.kind]||C.accent}}>{x.kind}</span><span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${kindColor[x.kind]||C.accent}20`,color:kindColor[x.kind]||C.accent}}>{x.kind}</span>
                       {isCandidate(x) && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${C.gold}25`,color:C.gold}}>🏅 후보</span>}
-                      {x.round && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${C.gold}15`,color:C.gold}}>{x.round}회 기출</span>}
+                    {x.round && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${C.gold}15`,color:C.gold}}>{x.round}회 기출</span>}
+                      {x.figCount>0 && <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,background:`${C.accent}20`,color:C.highlight}}>🖼 {x.figCount}</span>}
                       <span style={{fontSize:10,color:C.muted,marginLeft:"auto"}}>{new Date(x.savedAt).toLocaleString("ko-KR")}</span>
                     </div>
                     {x.q && <div style={{fontSize:11,color:C.orange,marginBottom:4,lineHeight:1.5}}>Q. {mineOpen===x.id?x.q:(x.q.length>60?x.q.slice(0,60)+"...":x.q)}</div>}
@@ -1812,7 +1861,13 @@ export default function MachSafety({ onBack }) {
                     </div>
                     <div style={{fontSize:10,color:C.muted,marginTop:4}}>{x.text.length}자 · {mineOpen===x.id?"탭하면 접기":"탭하면 전체 보기"}</div>
                   </div>
-              {mineOpen===x.id && x.kind==="내 말" && !isCandidate(x) && (
+            {mineOpen===x.id && (mineFigs[x.id]||[]).map((f,fi)=>(
+                    <div key={fi} style={{marginTop:8}}>
+                      <img src={f.data} alt={f.caption||"그림"} style={{maxWidth:"100%",borderRadius:8,background:"#fff"}}/>
+                      {f.caption && <div style={{fontSize:11,color:C.muted,marginTop:2}}>{f.caption}</div>}
+                    </div>
+                  ))}
+                  {mineOpen===x.id && x.kind==="내 말" && !isCandidate(x) && (
                     <div style={{fontSize:10,color:C.muted,marginTop:6,lineHeight:1.6}}>🏅 후보 조건 미충족: {candidateInfo(x).reasons.join(" · ")}</div>
                   )}
                   {mineOpen===x.id && (
