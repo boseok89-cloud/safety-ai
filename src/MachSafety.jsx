@@ -942,7 +942,17 @@ function extractCites(text) {
     out.push({ pos: m.index, key: "n" + m.index + ":" + m[0].replace(/\s+/g, ""), kind: "수치", label: m[0].replace(/\s+/g, ""), ctx: ctxOf(m.index, m[0].length) });
   }
   out.sort((a, b) => a.pos - b.pos);
-  return out.slice(0, 60);
+  // 1단계, 2단계, 3단계…처럼 번호 매기기로 쓰인 수치는 인용에서 제외
+  const filtered = out.filter(it => {
+    if (it.kind !== "수치") return true;
+    const mm = it.label.match(/^(\d+)(단계|가지)$/);
+    if (!mm) return true;
+    const set = new Set(out.filter(o => o.kind === "수치" && o.label.endsWith(mm[2])).map(o => parseInt(o.label, 10)));
+    let run = 0;
+    while (set.has(run + 1)) run++;
+    return !(run >= 3 && parseInt(mm[1], 10) <= run);
+  });
+  return filtered.slice(0, 60);
 }
 
 // ── 확정·진도 기록 서버 동기화 (/api/state) ──
