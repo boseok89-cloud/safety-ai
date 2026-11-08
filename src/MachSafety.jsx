@@ -1091,6 +1091,7 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const [examSearch, setExamSearch] = useState("");
   const [lawView, setLawView] = useState(null);
   const showLaw = async (key, src) => {
     setLawView({ key, loading: true });
@@ -1272,6 +1273,25 @@ export default function MachSafety({ onBack }) {
           </button>
         </div>
 
+      <div style={{background:C.card,borderRadius:12,padding:"10px 12px",marginBottom:10,border:`1px solid ${C.border}`}}>
+          <input value={examSearch} onChange={e=>setExamSearch(e.target.value)} placeholder="📜 기출 찾기 (회차 숫자 또는 단어, 예: 105 / 헤드가드)"
+            style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:12,outline:"none",boxSizing:"border-box"}}/>
+          {examSearch.trim() && (() => {
+            const kw = examSearch.trim();
+            const isRound = /^\d{2,3}$/.test(kw);
+            const list = EXAM_ALL.filter(e => isRound ? String(e.round) === kw : e.q.replace(/\s/g,"").includes(kw.replace(/\s/g,""))).slice(0, 60);
+            return (
+              <div style={{marginTop:8,maxHeight:360,overflowY:"auto"}}>
+                <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{list.length}건{list.length===60?" (상위 60건만 표시)":""}</div>
+                {list.map((e,i)=>(
+                  <div key={i} style={{padding:"6px 0",borderTop:`1px solid ${C.border}`,fontSize:11,lineHeight:1.6,color:C.text}}>
+                    <span style={{fontSize:10,fontWeight:700,color:C.gold,background:`${C.gold}15`,padding:"1px 6px",borderRadius:6,marginRight:6}}>{e.round}회</span>{e.q}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
         <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{filtered.length}개 문제</div>
 
         {filtered.map(t=>(
@@ -1353,7 +1373,7 @@ export default function MachSafety({ onBack }) {
         </div>
 
         {(() => {
-          const related = findRelatedExams(selectedTopic, 4);
+          const related = findRelatedExams(selectedTopic, 8);
           if (related.length === 0) return null;
           return (
             <div style={{marginTop:14,background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}`}}>
