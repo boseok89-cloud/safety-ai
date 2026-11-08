@@ -41,7 +41,8 @@ export default async function handler(req, res) {
         q: b.q ? String(b.q).slice(0, 2000) : null,
         kind: ["교재 필사", "내 말", "혼합"].includes(b.kind) ? b.kind : "혼합",
         text: text.slice(0, 20000),
-        memo: String(b.memo || "").slice(0, 500),
+         memo: String(b.memo || "").slice(0, 500),
+        figCount: Math.min(parseInt(b.figCount, 10) || 0, 3),
         savedAt: new Date().toISOString(),
       };
       await cmd("LPUSH", KEY, JSON.stringify(item));
@@ -66,7 +67,8 @@ export default async function handler(req, res) {
         try { return JSON.parse(s).id === id; } catch { return false; }
       });
       if (!target) return res.status(404).json({ error: "찾을 수 없습니다" });
-      await cmd("LREM", KEY, 1, target);
+          await cmd("LREM", KEY, 1, target);
+      try { await cmd("HDEL", "mach:figs", id); } catch {}
       return res.status(200).json({ ok: true });
     }
 
