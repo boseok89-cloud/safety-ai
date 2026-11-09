@@ -1134,7 +1134,7 @@ export default function MachSafety({ onBack }) {
   useEffect(() => {
     let st = document.getElementById("mach-wide-style");
     if (!st) { st = document.createElement("style"); st.id = "mach-wide-style"; document.head.appendChild(st); }
-    st.textContent = mw > 600 ? `[style*="max-width: 600px"]{max-width:${mw}px !important;}` : "";
+     st.textContent = mw > 600 ? `#root > *, #root > * > *, #root > * > * > *{max-width:none !important;} #root [style*="max-width: 600px"]{max-width:${mw}px !important;}` : "";
     try { localStorage.setItem("mach_mw", String(mw)); } catch {}
   }, [mw]);
   useEffect(() => {
