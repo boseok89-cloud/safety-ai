@@ -627,14 +627,24 @@ function cleanQ(q) {
     .trim();
 }
 function findRelatedExams(topic, limit=3) {
-  const searchTerms = [topic.title, ...topic.keywords.slice(0,3)];
+  const norm = (s) => s.replace(/[\s·ㆍ,.\-]/g, "");
+  const clean = (s) => s.replace(/\([^)]*\)/g, "").trim();
+  const subject = clean(topic.title).split(/[\s·,]+/)[0].replace(/(의|과|와|및)$/, "");
+  const generic = ["기계설비","기계","안전","산업안전보건법","재해","안전보건","설비","금속","재료","작업"].includes(subject);
+  const titleFull = norm(clean(topic.title));
+  const searchTerms = topic.keywords.map(k => clean(k).split(/[-:=]/)[0].trim()).filter(k => k.length >= 3);
  const scored = EXAM_ALL.map(e => {
     let score = 0;
     searchTerms.forEach(term => {
       const cleaned = term.replace(/\([^)]*\)/g,"").trim();
       if (cleaned.length >= 2 && e.q.includes(cleaned)) score += cleaned.length;
     });
-    return {...e, q: cleanQ(e.q), score};
+    const flat = norm(e.q);
+    const hits = searchTerms.filter(k => flat.includes(norm(k))).length;
+    const hasSubject = subject.length >= 2 && flat.includes(norm(subject));
+    const hasTitle = titleFull.length >= 3 && flat.includes(titleFull);
+    const ok = hasTitle || (hasSubject && (!generic || hits >= 1)) || hits >= 3;
+    return {...e, q: cleanQ(e.q), score: ok ? score + (hasTitle ? 50 : 0) + (hasSubject ? 20 : 0) : 0};
   }).filter(e => e.score > 0).sort((a,b)=>b.score-a.score);
   return scored.slice(0, limit);
 }
@@ -1045,6 +1055,10 @@ async function loadFigsApi(id) {
   return d;
 }
 
+// 검증이 필요한 핵심 줄(법령·조문·수치·기구 명칭)인지 판별
+const KEY_RE = /제\s*\d+\s*조|\d+(?:\.\d+)?\s*(?:개월|%|퍼센트|단계|가지|시간|일|년|명|개|회|분|mm|cm|kg|dB|Hz|℃|MPa|kPa|m|t)(?![a-zA-Z])|(?:산업안전보건|안전보건|중대재해|위험물|고압가스)[가-힣\s]*(?:법|령|규칙|기준)|고시|지침|(?:장치|밸브|스위치|센서|차단기|감지기|경보기|검출기|조절기|게이지|방지기|해지|제한기)/;
+const isKeyLine = (t) => KEY_RE.test(t || "");
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1112,6 +1126,26 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const [showLines, setShowLines] = useState(false);
+  const [onlyKey, setOnlyKey] = useState(true);
+  const [mw, setMw] = useState(() => {
+    try { return parseInt(localStorage.getItem("mach_mw") || "600", 10) || 600; } catch { return 600; }
+  });
+  useEffect(() => {
+    let st = document.getElementById("mach-wide-style");
+    if (!st) { st = document.createElement("style"); st.id = "mach-wide-style"; document.head.appendChild(st); }
+    st.textContent = mw > 600 ? `[style*="max-width: 600px"]{max-width:${mw}px !important;}` : "";
+    try { localStorage.setItem("mach_mw", String(mw)); } catch {}
+  }, [mw]);
+  useEffect(() => {
+    const b = document.createElement("button");
+    b.textContent = "↔";
+    b.title = "화면 너비 바꾸기";
+    Object.assign(b.style, { position: "fixed", right: "14px", bottom: "14px", zIndex: "50", width: "42px", height: "42px", borderRadius: "99px", border: "1px solid #3b82f6", background: "#111827", color: "#60a5fa", fontSize: "18px", cursor: "pointer" });
+    b.onclick = () => setMw(prev => (prev === 600 ? 900 : prev === 900 ? 1200 : 600));
+    document.body.appendChild(b);
+    return () => { b.remove(); const st = document.getElementById("mach-wide-style"); if (st) st.remove(); };
+  }, []);
   const [figs, setFigs] = useState([]);
   const [showDraw, setShowDraw] = useState(false);
   const [mineFigs, setMineFigs] = useState({});
@@ -1153,7 +1187,7 @@ export default function MachSafety({ onBack }) {
     setVerifyLines(
       x.verify && x.verify.lines
         ? x.verify.lines
-        : splitLines(x.text).map(t => ({ text: t, tag: x.kind === "내 말" ? "mine" : "fact", srcType: "법령", src: "", checked: false }))
+        : splitLines(x.text).map(t => ({ text: t, tag: (/^\s*\d+\s*[.)]\s*\S/.test(t) && t.length <= 30) ? "head" : (isKeyLine(t) ? "fact" : "mine"), srcType: "법령", src: "", checked: false }))
     );
     setScreen("verify");
   };
@@ -1452,7 +1486,7 @@ export default function MachSafety({ onBack }) {
           <div style={{fontSize:10,color:C.muted,marginBottom:7}}>📝 답안 (개요 → 본론 → 결론)</div>
           <textarea value={answer} onChange={e=>setAnswer(e.target.value)}
             placeholder={"1. 개요\n   ...\n\n2. 본론\n   1) ...\n   2) ...\n\n3. 결론\n   ..."}
-            rows={10}
+            rows={16}
             style={{width:"100%",padding:"11px",borderRadius:10,border:`1.5px solid ${answer?C.accent+"50":C.border}`,
               background:"#0d1520",color:C.text,fontSize:12,lineHeight:1.8,outline:"none",
               boxSizing:"border-box",resize:"vertical",fontFamily:"'Noto Sans KR',sans-serif"}}/>
@@ -1717,7 +1751,17 @@ export default function MachSafety({ onBack }) {
             );
           })()}
 
-          {verifyLines.map((l,i)=>(
+      <div style={{background:C.card,borderRadius:14,padding:"10px 14px",marginBottom:10,border:`1px solid ${C.border}`}}>
+            <div onClick={()=>setShowLines(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.muted,cursor:"pointer"}}>🧾 줄 단위 검증 (선택) {showLines?"▲":"▼"}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:4,lineHeight:1.6}}>법령·수치·기구 명칭이 든 줄만 따로 확인할 수 있어요. 기준표가 있는 주제는 기준표 점검과 인용 확인만으로 충분해요.</div>
+            {showLines && (
+              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                <button onClick={()=>setOnlyKey(p=>!p)} style={tagStyle(onlyKey,C.accent)}>핵심 줄만 ({verifyLines.filter(l=>isKeyLine(l.text)||l.tag==="fact"||l.tag==="head").length}/{verifyLines.length})</button>
+                <button onClick={()=>setVerifyLines(prev=>prev.map(l=>(isKeyLine(l.text)||l.tag==="head")?l:{...l,tag:"mine"}))} style={tagStyle(false,C.green)}>나머지는 모두 '내 생각'</button>
+              </div>
+            )}
+          </div>
+          {showLines && verifyLines.map((l,i)=>[l,i]).filter(([l])=>!onlyKey||isKeyLine(l.text)||l.tag==="fact"||l.tag==="head").map(([l,i])=>(
             <div key={i} style={{background:C.card,borderRadius:12,padding:"10px 12px",marginBottom:6,
               border:`1px solid ${l.tag==="fact"?C.accent+"50":l.tag==="mine"?C.green+"50":C.border}`,opacity:l.tag==="skip"?0.5:1}}>
               <div style={{fontSize:12,lineHeight:1.7,marginBottom:8}}>{l.text}</div>
