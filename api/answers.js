@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         topicTitle: String(b.topicTitle || "").slice(0, 200),
         round: b.round ?? null,
         q: b.q ? String(b.q).slice(0, 2000) : null,
-        kind: ["교재 필사", "내 말", "혼합"].includes(b.kind) ? b.kind : "혼합",
+        kind: ["교재 필사", "내 말", "인터넷 참고", "혼합"].includes(b.kind) ? b.kind : "내 말",
         text: text.slice(0, 20000),
          memo: String(b.memo || "").slice(0, 500),
         figCount: Math.min(parseInt(b.figCount, 10) || 0, 3),
