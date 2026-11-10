@@ -6,7 +6,7 @@
 const norm = (s) => String(s || "").toLowerCase().replace(/[\s·ㆍ,.\-()]/g, "");
 
 export function checkRubric(rubric, text) {
-  const t = norm(text);
+  const t = norm(String(text || "").replace(/==|\[그림[1-3]\]/g, ""));
   return rubric.items.map((it) => {
     const matched = it.groups.filter((g) => g.some((k) => t.includes(norm(k)))).length;
     const need = it.min || it.groups.length;
