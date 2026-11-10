@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { EXAM_BANK } from "./ExamBank";
 import { EXAM_FIX } from "./ExamFix";
 import AnswerView from "./AnswerView";
@@ -677,6 +677,8 @@ function gradeByRubric(rb, answer) {
 }
 
 function gradeAnswer(topic, answer) {
+  answer = String(answer || "").replace(/\[그림[1-3]\]/g, "");
+  answer = String(answer || "").replace(/==/g, "");
   const rubricForTopic = Object.values(RUBRICS).find(r => r.title === topic.title);
   if (rubricForTopic) return gradeByRubric(rubricForTopic, answer);
   const norm = s => s.replace(/\s/g, "");
@@ -709,7 +711,7 @@ function gradeAnswer(topic, answer) {
   };
 }
 // ── 내 답안 저장 (서버 /api/answers, 비용 0) ──
-const KINDS = ["교재 필사", "내 말", "혼합"];
+const kindColor = { "교재 필사":C.orange, "내 말":C.green, "인터넷 참고":C.cyan, "혼합":C.accent };
 
 // 비밀번호는 서버가 요구할 때만 사용 (자동 입력창 없음). 한글 등이 들어가도 fetch가 깨지지 않게 인코딩
 function getAnswersKey() {
@@ -785,7 +787,9 @@ function exportAnswers(items, type) {
 const SRC_TYPES = ["법령", "고시", "KOSHA GUIDE", "참고"];
 const SRC_OK = ["법령", "고시", "KOSHA GUIDE"];
 
-function splitLines(text) {
+function splitLines(rawText0) {
+  const rawText = String(rawText0 || "").replace(/\[그림[1-3]\]/g, "");
+  const text = String(rawText || "").replace(/==/g, "");
   const out = [];
   text.split(/\n+/).forEach(raw => {
     const line = raw.trim();
@@ -942,7 +946,9 @@ function findGaps(refLines, myLines) {
 const LAW_NAMES = ["산업안전보건기준에 관한 규칙","산업안전보건법 시행규칙","산업안전보건법 시행령","산업안전보건법","중대재해 처벌 등에 관한 법률 시행령","중대재해 처벌 등에 관한 법률","중대재해처벌법 시행령","중대재해처벌법","위험물안전관리법","고압가스 안전관리법","승강기 안전관리법","화학물질관리법"];
 const LAW_SORTED = LAW_NAMES.map(n => ({ n, c: n.replace(/\s/g, "") })).sort((a, b) => b.c.length - a.c.length);
 
-function extractCites(text) {
+function extractCites(rawText0) {
+  const rawText = String(rawText0 || "").replace(/\[그림[1-3]\]/g, "");
+  const text = String(rawText || "").replace(/==/g, "");
   const out = [];
   const ctxOf = (i, len) => text.slice(Math.max(0, i - 28), i + len + 28).replace(/\s+/g, " ").trim();
   let m;
@@ -1059,6 +1065,51 @@ async function loadFigsApi(id) {
 const KEY_RE = /제\s*\d+\s*조|\d+(?:\.\d+)?\s*(?:개월|%|퍼센트|단계|가지|시간|일|년|명|개|회|분|mm|cm|kg|dB|Hz|℃|MPa|kPa|m|t)(?![a-zA-Z])|(?:산업안전보건|안전보건|중대재해|위험물|고압가스)[가-힣\s]*(?:법|령|규칙|기준)|고시|지침|(?:장치|밸브|스위치|센서|차단기|감지기|경보기|검출기|조절기|게이지|방지기|해지|제한기)/;
 const isKeyLine = (t) => KEY_RE.test(t || "");
 
+// ==글자== 로 표시된 부분을 노란 음영으로 보여준다
+function Marked({ text }) {
+  const parts = String(text || "").split("==");
+  return (
+    <span>
+      {parts.map((p, i) => (i % 2 === 1
+        ? <mark key={i} style={{background:"#fde68a",color:"#111",borderRadius:3,padding:"0 2px"}}>{p}</mark>
+        : <span key={i}>{p}</span>))}
+    </span>
+  );
+}
+
+// 본문의 [그림N] 자리에 그림을 끼워서 보여준다 (==음영== 도 함께 처리)
+function AnswerBody({ text, figs }) {
+  const segs = String(text || "").split(/(\[그림[1-3]\])/);
+  const isMark = (x) => /^\[그림[1-3]\]$/.test(x || "");
+  const used = new Set();
+  const card = (f, n, key) => (
+    <span key={key} style={{display:"block",margin:"8px 0",whiteSpace:"normal"}}>
+      <img src={f.data} alt={f.caption || `그림${n}`} style={{maxWidth:"100%",borderRadius:8,background:"#fff",display:"block"}}/>
+      <span style={{display:"block",fontSize:11,color:"#94a3b8",marginTop:2}}>{`그림${n}${f.caption ? ". " + f.caption : ""}`}</span>
+    </span>
+  );
+  const body = segs.map((s, i) => {
+    if (!isMark(s)) {
+      let t = s;
+      if (isMark(segs[i - 1])) t = t.replace(/^\n/, "");
+      if (isMark(segs[i + 1])) t = t.replace(/\n$/, "");
+      return <Marked key={i} text={t} />;
+    }
+    const n = parseInt(s.slice(3, 4), 10);
+    const f = (figs || [])[n - 1];
+    if (!f) return <span key={i} style={{color:"#64748b"}}>{figs ? `[그림${n}: 없음]` : `[그림${n} 불러오는 중…]`}</span>;
+    used.add(n);
+    return card(f, n, i);
+  });
+  const rest = (figs || []).map((f, i) => [f, i + 1]).filter(([, n]) => !used.has(n));
+  return (
+    <div>
+      <div style={{whiteSpace:"pre-wrap"}}>{body}</div>
+      {rest.map(([f, n]) => card(f, n, "r" + n))}
+    </div>
+  );
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1090,7 +1141,7 @@ export default function MachSafety({ onBack }) {
         memo: saveMemo,
         figCount: figs.length,
       });
-      if (figs.length) { await saveFigsApi(saved.id, figs); setFigs([]); }
+      if (figs.length) { await saveFigsApi(saved.id, figs); }
       setSaveMsg("✅ 저장됨");
       setSaveMemo("");
     } catch (e) {
@@ -1126,6 +1177,32 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const taRef = useRef(null);
+  const insertFig = (i) => {
+    const n = i + 1;
+    if (answer.includes(`[그림${n}]`)) { window.alert(`[그림${n}]이 이미 본문에 있어요. 위치를 바꾸려면 본문에서 그 줄을 지우고 다시 누르세요.`); return; }
+    const ta = taRef.current;
+    const pos = ta && typeof ta.selectionStart === "number" ? ta.selectionStart : answer.length;
+    setAnswer(answer.slice(0, pos) + `\n[그림${n}]\n` + answer.slice(pos));
+  };
+  const removeFig = (i) => {
+    const n = i + 1;
+    let t = answer.replace(new RegExp("\\n?\\[그림" + n + "\\]", "g"), "");
+    t = t.replace(/\[그림([1-3])\]/g, (m, d) => (parseInt(d, 10) > n ? "[그림" + (parseInt(d, 10) - 1) + "]" : m));
+    setAnswer(t);
+    setFigs(prev => prev.filter((_, j) => j !== i));
+  };
+  const markSel = () => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    if (s === e) { window.alert("음영을 줄 글자를 먼저 드래그해서 선택하세요"); return; }
+    const sel = answer.slice(s, e);
+    const already = answer.slice(s - 2, s) === "==" && answer.slice(e, e + 2) === "==";
+    setAnswer(already
+      ? answer.slice(0, s - 2) + sel + answer.slice(e + 2)
+      : answer.slice(0, s) + "==" + sel + "==" + answer.slice(e));
+  };
   const [showLines, setShowLines] = useState(false);
   const [onlyKey, setOnlyKey] = useState(true);
   const [mw, setMw] = useState(() => {
@@ -1483,14 +1560,25 @@ export default function MachSafety({ onBack }) {
         </div>
 
         <div style={{background:C.card,borderRadius:14,padding:"12px",marginBottom:12,border:`1px solid ${C.border}`}}>
-          <div style={{fontSize:10,color:C.muted,marginBottom:7}}>📝 답안 (개요 → 본론 → 결론)</div>
-          <textarea value={answer} onChange={e=>setAnswer(e.target.value)}
+       <div style={{fontSize:10,color:C.muted,marginBottom:7}}>📝 답안 (개요 → 본론 → 결론)</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+            <button onMouseDown={e=>e.preventDefault()} onClick={markSel}
+              style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.gold}60`,background:`${C.gold}20`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>🖍 음영</button>
+            <span style={{fontSize:10,color:C.muted}}>글자를 드래그해서 선택한 뒤 누르세요 (다시 누르면 해제)</span>
+          </div>
+       <textarea ref={taRef} value={answer} onChange={e=>setAnswer(e.target.value)}
             placeholder={"1. 개요\n   ...\n\n2. 본론\n   1) ...\n   2) ...\n\n3. 결론\n   ..."}
             rows={16}
             style={{width:"100%",padding:"11px",borderRadius:10,border:`1.5px solid ${answer?C.accent+"50":C.border}`,
               background:"#0d1520",color:C.text,fontSize:12,lineHeight:1.8,outline:"none",
               boxSizing:"border-box",resize:"vertical",fontFamily:"'Noto Sans KR',sans-serif"}}/>
-                    <div style={{textAlign:"right",fontSize:10,color:C.muted,marginTop:3}}>{answer.length}자</div>
+                    {(answer.includes("==") || /\[그림[1-3]\]/.test(answer)) && (
+            <div style={{marginTop:8,padding:"10px 12px",background:"#0d1520",borderRadius:8,fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text}}>
+              <div style={{fontSize:10,color:C.muted,marginBottom:4}}>미리보기 (음영 표시)</div>
+              <AnswerBody text={answer} figs={figs} />
+            </div>
+          )}
+          <div style={{textAlign:"right",fontSize:10,color:C.muted,marginTop:3}}>{answer.length}자</div>
           <div style={{borderTop:`1px solid ${C.border}`,marginTop:10,paddingTop:10}}>
             <div style={{display:"flex",gap:6,marginBottom:8}}>
               {KINDS.map(k=>(
@@ -1501,7 +1589,7 @@ export default function MachSafety({ onBack }) {
                     border:`1px solid ${saveKind===k?C.accent:C.border}`}}>{k}</button>
               ))}
             </div>
-            <input value={saveMemo} onChange={e=>setSaveMemo(e.target.value)} placeholder="메모 (선택: 교재명·쪽수 등)"
+            <input value={saveMemo} onChange={e=>setSaveMemo(e.target.value)} placeholder="메모 (교재명·쪽수 / 인터넷 참고는 주소(URL)를 꼭 적어 두세요)"
               style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:11,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
             <button onClick={handleSave} disabled={!answer.trim()}
               style={{width:"100%",padding:"10px",borderRadius:10,border:"none",fontSize:12,fontWeight:700,
@@ -1527,7 +1615,8 @@ export default function MachSafety({ onBack }) {
               <div style={{display:"flex",gap:6,marginTop:6}}>
                 <input value={f.caption} onChange={e=>setFigs(prev=>prev.map((g,j)=>j===i?{...g,caption:e.target.value.slice(0,100)}:g))} placeholder="캡션 (예: 욕조곡선)"
                   style={{flex:1,padding:"7px 9px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0b1220",color:C.text,fontSize:11,outline:"none"}}/>
-                <button onClick={()=>setFigs(prev=>prev.filter((_,j)=>j!==i))} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.red}40`,background:`${C.red}10`,color:C.red,fontSize:11,cursor:"pointer"}}>🗑</button>
+              <button onClick={()=>insertFig(i)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.gold}60`,background:`${C.gold}15`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>{`📌 [그림${i+1}] 본문에 끼우기`}</button>
+                <button onClick={()=>removeFig(i)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.red}40`,background:`${C.red}10`,color:C.red,fontSize:11,cursor:"pointer"}}>🗑</button>
               </div>
             </div>
           ))}
@@ -1616,14 +1705,14 @@ export default function MachSafety({ onBack }) {
           </div>
 
                 {(() => {
-            const refItems = mineItems.filter(x => x.kind === "교재 필사" && x.topicTitle === verifyItem.topicTitle && x.id !== verifyItem.id);
+          const refItems = mineItems.filter(x => (x.kind === "교재 필사" || x.kind === "인터넷 참고") && x.topicTitle === verifyItem.topicTitle && x.id !== verifyItem.id);
             const myLines = verifyLines.filter(l => l.tag !== "skip" && l.tag !== "head").map(l => l.text);
             const refLines = refItems.flatMap(x => splitLines(x.text));
             const gaps = findGaps(refLines, myLines);
             return (
               <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.orange}40`}}>
                 <div onClick={()=>setShowRef(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.orange,cursor:"pointer"}}>
-                  📖 교재 필사 ({refItems.length}개) {showRef?"▲":"▼"}
+                📖 교재·인터넷 참고 ({refItems.length}개) {showRef?"▲":"▼"}
                 </div>
                 {refItems.length===0 && (
                   <div style={{fontSize:11,color:C.muted,marginTop:6,lineHeight:1.6}}>같은 주제로 저장된 교재 필사가 없습니다. 답안연습에서 종류를 '교재 필사'로 저장하면 여기에 나타납니다.</div>
@@ -1901,11 +1990,13 @@ export default function MachSafety({ onBack }) {
                     {x.q && <div style={{fontSize:11,color:C.orange,marginBottom:4,lineHeight:1.5}}>Q. {mineOpen===x.id?x.q:(x.q.length>60?x.q.slice(0,60)+"...":x.q)}</div>}
                     {x.memo && <div style={{fontSize:10,color:C.muted,marginBottom:4}}>📎 {x.memo}</div>}
                     <div style={{fontSize:12,color:C.text,lineHeight:1.7,whiteSpace:"pre-wrap"}}>
-                      {mineOpen===x.id?x.text:(x.text.length>120?x.text.slice(0,120)+"...":x.text)}
+                  {mineOpen===x.id
+                      ? <AnswerBody text={x.text} figs={mineFigs[x.id]} />
+                      : <Marked text={(()=>{ const t=x.text.replace(/\[그림[1-3]\]/g,"🖼 "); return t.length>120?t.slice(0,120)+"...":t; })()} />}
                     </div>
                     <div style={{fontSize:10,color:C.muted,marginTop:4}}>{x.text.length}자 · {mineOpen===x.id?"탭하면 접기":"탭하면 전체 보기"}</div>
                   </div>
-            {mineOpen===x.id && (mineFigs[x.id]||[]).map((f,fi)=>(
+            {false && (mineFigs[x.id]||[]).map((f,fi)=>(
                     <div key={fi} style={{marginTop:8}}>
                       <img src={f.data} alt={f.caption||"그림"} style={{maxWidth:"100%",borderRadius:8,background:"#fff"}}/>
                       {f.caption && <div style={{fontSize:11,color:C.muted,marginTop:2}}>{f.caption}</div>}
@@ -1916,7 +2007,7 @@ export default function MachSafety({ onBack }) {
                   )}
                   {mineOpen===x.id && (
                     <div style={{display:"flex",gap:6,marginTop:8}}>
-                      <button onClick={()=>openVerify(x)}
+                    <button onClick={()=>openVerify(x)} hidden={x.kind==="교재 필사"||x.kind==="인터넷 참고"}
                         style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${C.accent}40`,background:`${C.accent}15`,color:C.highlight,fontSize:11,fontWeight:700,cursor:"pointer"}}>
                         🔍 검증{x.verify?` (${x.verify.status==="sourced"?"출처확인":x.verify.status==="crossed"?"교재대조":"초안"})`:""}
                       </button>
