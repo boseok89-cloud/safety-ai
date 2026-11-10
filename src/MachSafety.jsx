@@ -1110,6 +1110,8 @@ function AnswerBody({ text, figs }) {
   );
 }
 
+const KINDS = ["교재 필사", "내 말", "인터넷 참고"];
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
