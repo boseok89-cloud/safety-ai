@@ -1112,6 +1112,30 @@ function AnswerBody({ text, figs }) {
 
 const KINDS = ["교재 필사", "내 말", "인터넷 참고"];
 
+// ── 내 모범답안 저장 (/api/models) ──
+async function modelsGetApi() {
+  const res = await fetch("/api/models", { headers: { "x-answers-key": getAnswersKey() } });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "모범답안 불러오기 실패");
+  return d;
+}
+
+async function modelPutApi(item) {
+  const res = await fetch("/api/models", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "x-answers-key": getAnswersKey() },
+    body: JSON.stringify(item),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "모범답안 저장 실패");
+}
+
+async function modelDeleteApi(title) {
+  const res = await fetch("/api/models?title=" + encodeURIComponent(title), { method: "DELETE", headers: { "x-answers-key": getAnswersKey() } });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "삭제 실패");
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1179,6 +1203,39 @@ export default function MachSafety({ onBack }) {
   const [verifyLines, setVerifyLines] = useState([]);
   const [verifyMsg, setVerifyMsg] = useState("");
   const [showRef, setShowRef] = useState(true);
+  const [models, setModels] = useState({});
+  const [modelText, setModelText] = useState("");
+  const [modelMsg, setModelMsg] = useState("");
+  const [showMat, setShowMat] = useState(true);
+  const mTaRef = useRef(null);
+  useEffect(() => {
+    modelsGetApi().then(d => {
+      const m = {};
+      (d.items || []).forEach(x => { m[x.topicTitle] = x; });
+      setModels(m);
+    }).catch(() => {});
+  }, []);
+  const openModel = async () => {
+    if (!selectedTopic) return;
+    const cur = models[selectedTopic.title];
+    setModelText(cur ? cur.text : "");
+    setModelMsg("");
+    setScreen("model");
+    if (!mineItems.length) {
+      try { const d = await loadAnswersApi(); setMineItems(d.items || []); } catch {}
+    }
+  };
+  const markModel = () => {
+    const ta = mTaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    if (s === e) { window.alert("음영(핵심 키워드)으로 표시할 글자를 먼저 드래그해서 선택하세요"); return; }
+    const sel = modelText.slice(s, e);
+    const already = modelText.slice(s - 2, s) === "==" && modelText.slice(e, e + 2) === "==";
+    setModelText(already
+      ? modelText.slice(0, s - 2) + sel + modelText.slice(e + 2)
+      : modelText.slice(0, s) + "==" + sel + "==" + modelText.slice(e));
+  };
   const taRef = useRef(null);
   const insertFig = (i) => {
     const n = i + 1;
@@ -1663,6 +1720,11 @@ export default function MachSafety({ onBack }) {
           </div>
         )}
 
+        <button onClick={openModel}
+          style={{width:"100%",padding:"12px",marginBottom:8,background:`${C.green}15`,border:`1px solid ${C.green}40`,borderRadius:13,color:C.green,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          📝 내 모범답안 만들기·고치기
+        </button>
+
         <button onClick={handleModel}
           style={{width:"100%",padding:"12px",marginBottom:8,
             background:`${C.gold}15`,border:`1px solid ${C.gold}40`,
@@ -1673,13 +1735,181 @@ export default function MachSafety({ onBack }) {
         {modelAnswer && (
           <div style={{background:`${C.gold}08`,border:`1px solid ${C.gold}30`,borderRadius:14,padding:"14px"}}>
             <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:10}}>📖 답안은행 모범답안</div>
-            <AnswerView answerKey={findAnswerKey(selectedTopic)} />
+           {models[selectedTopic.title]
+              ? (
+                <div>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:6,lineHeight:1.6}}>
+                    내 모범답안 · {models[selectedTopic.title].status==="confirmed"?"확정(인용 확인됨)":"초안(인용 확인 전)"} · 내가 쓴 답안이며 정답이 아닙니다
+                  </div>
+                  <div style={{fontSize:12,lineHeight:1.9,color:C.text}}><AnswerBody text={models[selectedTopic.title].text} figs={[]} /></div>
+                  {Object.values(models[selectedTopic.title].cites||{}).filter(v=>v.res==="ok"&&v.src).length>0 && (
+                    <div style={{fontSize:10,color:C.muted,marginTop:8,lineHeight:1.6}}>
+                      확인한 출처: {[...new Set(Object.values(models[selectedTopic.title].cites).filter(v=>v.res==="ok"&&v.src).map(v=>v.src))].join(" · ")}
+                    </div>
+                  )}
+                </div>
+              )
+              : <AnswerView answerKey={findAnswerKey(selectedTopic)} />}
           </div>
         )}
       </div>
     </div>
   );
     // ── 답안 검증 ──────────────────────────────────────────────
+  if (screen === "model" && selectedTopic) {
+    const seen = {};
+    const cites = extractCites(modelText).map(c => {
+      const base = c.kind + ":" + c.label;
+      seen[base] = (seen[base] || 0) + 1;
+      return { ...c, skey: base + "#" + seen[base] };
+    });
+    const keyOf = (c) => "m:" + selectedTopic.title + "|" + c.skey;
+    const resOf = (c) => (citeData[keyOf(c)] || {}).res;
+    const pending = cites.filter(c => !resOf(c)).length;
+    const bad = cites.filter(c => resOf(c) === "bad").length;
+    const refs = mineItems.filter(x => (x.kind === "교재 필사" || x.kind === "인터넷 참고") && x.topicTitle === selectedTopic.title);
+    const rb = Object.values(RUBRICS).find(r => r.title === selectedTopic.title);
+    const rres = rb ? checkRubric(rb, modelText) : null;
+    const cur = models[selectedTopic.title];
+    const chip = (on, color) => ({flex:1,padding:"6px 0",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer",background:on?`${color}30`:"transparent",color:on?color:C.muted,border:`1px solid ${on?color:C.border}`});
+    const save = async (confirm) => {
+      if (!modelText.trim()) { setModelMsg("답안이 비어 있어요"); return; }
+      if (confirm && (pending > 0 || bad > 0)) { setModelMsg(`확정하려면 인용을 먼저 정하세요 (미확정 ${pending}개 · 불일치 ${bad}개)`); return; }
+      const cd = {};
+      cites.forEach(c => {
+        const d = citeData[keyOf(c)];
+        if (d && (d.res || d.src)) cd[c.skey] = { res: d.res || null, src: d.src !== undefined ? d.src : (c.kind === "조문" ? c.label : "") };
+      });
+      setModelMsg("저장 중...");
+      try {
+        await modelPutApi({ topicTitle: selectedTopic.title, topicId: selectedTopic.id, text: modelText, status: confirm ? "confirmed" : "draft", cites: cd });
+        setModels(prev => ({ ...prev, [selectedTopic.title]: { topicTitle: selectedTopic.title, text: modelText, status: confirm ? "confirmed" : "draft", cites: cd, updatedAt: new Date().toISOString() } }));
+        setModelMsg(confirm ? (cites.length ? "✅ 확정 저장됨 (인용 확인 완료)" : "✅ 확정 저장됨 (인용이 없어 인용 확인 없이 확정)") : "✅ 초안 저장됨");
+      } catch (e) { setModelMsg("❌ " + e.message); }
+    };
+    const remove = async () => {
+      if (!window.confirm("이 문제의 내 모범답안을 삭제할까요?")) return;
+      try {
+        await modelDeleteApi(selectedTopic.title);
+        setModels(prev => { const n = { ...prev }; delete n[selectedTopic.title]; return n; });
+        setModelText("");
+        setModelMsg("삭제했어요");
+      } catch (e) { setModelMsg("❌ " + e.message); }
+    };
+    return (
+      <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
+        <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
+          <button onClick={()=>setScreen("write")} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 답안연습</button>
+          <div style={{flex:1,fontSize:13,fontWeight:700}}>📝 내 모범답안 만들기</div>
+        </div>
+        <div style={{maxWidth:600,margin:"0 auto",padding:"14px 14px 60px"}}>
+          <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{selectedTopic.title}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:4,lineHeight:1.6}}>
+              {cur ? `저장됨: ${cur.status==="confirmed"?"확정":"초안"} · ${new Date(cur.updatedAt).toLocaleString("ko-KR")}` : "아직 저장된 내 모범답안이 없어요"}
+              <br/>정답이 아니라 내가 만드는 답안이에요. 자료를 옮겨 쓴 부분은 나만 보는 용도이고, 예시로 공개할 때는 내 문장으로 다시 쓰세요.
+            </div>
+          </div>
+
+          <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.orange}40`}}>
+            <div onClick={()=>setShowMat(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.orange,cursor:"pointer"}}>📥 자료 (교재 필사·인터넷 참고 {refs.length}개) {showMat?"▲":"▼"}</div>
+            {refs.length===0 && <div style={{fontSize:11,color:C.muted,marginTop:6,lineHeight:1.6}}>같은 주제로 저장한 자료가 없어요. 답안연습에서 종류를 '교재 필사'나 '인터넷 참고'로 저장하면 여기에 나타나요.</div>}
+            {showMat && refs.map(x=>(
+              <div key={x.id} style={{marginTop:8,padding:"8px 10px",background:"#0d1520",borderRadius:8}}>
+                <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{x.kind} · {new Date(x.savedAt).toLocaleString("ko-KR")}{x.memo?` · ${x.memo}`:""}</div>
+                <div style={{fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text,maxHeight:260,overflowY:"auto"}}>{x.text.replace(/==/g,"")}</div>
+              </div>
+            ))}
+          </div>
+
+          {rres && (
+            <div style={{background:C.card,borderRadius:14,padding:"10px 14px",marginBottom:10,border:`1px solid ${C.gold}40`}}>
+              <div style={{fontSize:12,fontWeight:800,color:C.gold}}>📋 기준표 {rres.filter(r=>r.hit).length}/{rres.length} 포함</div>
+              <div style={{fontSize:11,color:C.muted,marginTop:4,lineHeight:1.7}}>
+                {rres.filter(r=>!r.hit).length ? `빠진 요소: ${rres.filter(r=>!r.hit).map(r=>r.name).join(" · ")}` : "모든 요소가 들어 있어요"}
+              </div>
+            </div>
+          )}
+
+          <div style={{background:C.card,borderRadius:14,padding:"12px",marginBottom:10,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <button onMouseDown={e=>e.preventDefault()} onClick={markModel}
+                style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.gold}60`,background:`${C.gold}20`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>🖍 음영</button>
+              <span style={{fontSize:10,color:C.muted}}>핵심 키워드를 드래그해서 음영으로 표시하세요 (채점 키워드가 돼요)</span>
+            </div>
+            <textarea ref={mTaRef} value={modelText} onChange={e=>setModelText(e.target.value)} rows={18}
+              placeholder={"1. 개요\n   ...\n\n2. 본론\n   1) ...\n\n3. 결론\n   ..."}
+              style={{width:"100%",padding:"11px",borderRadius:10,border:`1.5px solid ${modelText?C.green+"50":C.border}`,background:"#0d1520",color:C.text,fontSize:12,lineHeight:1.8,outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"'Noto Sans KR',sans-serif"}}/>
+            {modelText.includes("==") && (
+              <div style={{marginTop:8,padding:"10px 12px",background:"#0d1520",borderRadius:8,fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text}}>
+                <div style={{fontSize:10,color:C.muted,marginBottom:4}}>미리보기 (음영 = 채점 키워드)</div>
+                <Marked text={modelText} />
+              </div>
+            )}
+            <div style={{textAlign:"right",fontSize:10,color:C.muted,marginTop:3}}>{modelText.length}자</div>
+          </div>
+
+          <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.accent}40`}}>
+            <div style={{fontSize:12,fontWeight:800,color:C.highlight,marginBottom:4}}>🔢 인용 확인 (조문 번호·수치)</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:8,lineHeight:1.6}}>
+              답안 속 조문 번호와 수치만 확인해요. 📄 앱에서 보기로 현행 조문을 읽고 일치 여부를 정하세요. 번호 매기기나 연도는 '해당 없음'을 누르세요.<br/>
+              {cites.length}개 중 미확정 {pending}개 · 불일치 {bad}개
+            </div>
+            {cites.length===0 && <div style={{fontSize:11,color:C.muted}}>인용된 조문·수치가 없어요. 법령이 있는 주제라면 조문 번호와 함께 쓰면 확인할 수 있어요.</div>}
+            {cites.map(c => {
+              const k = keyOf(c);
+              const d = citeData[k] || {};
+              const src = d.src !== undefined ? d.src : (c.kind === "조문" ? c.label : "");
+              return (
+                <div key={c.skey} style={{padding:"8px 0",borderTop:`1px solid ${C.border}`}}>
+                  <div style={{fontSize:12,fontWeight:700,color:C.gold}}>[{c.kind}] {c.label}</div>
+                  <div style={{fontSize:11,color:C.muted,lineHeight:1.6,margin:"2px 0 6px"}}>…{c.ctx}…</div>
+                  <input value={src} onChange={e=>setCite(k,{src:e.target.value})} placeholder={c.kind==="조문"?"예: 산업안전보건법 제36조":"출처 (법령명 조문 또는 고시명 조문)"}
+                    style={{width:"100%",padding:"7px 9px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:11,outline:"none",boxSizing:"border-box"}}/>
+                  <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
+                    <button onClick={()=>{ const t=(src||"").trim()||c.label; if(!/제\s*\d+\s*조/.test(t)){ window.alert("법령명과 조문이 있는 항목만 앱에서 볼 수 있어요. 출처 칸에 예: 산업안전보건법 제36조"); return; } showLaw(k, t); }}
+                      style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.gold}60`,background:`${C.gold}15`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>📄 앱에서 보기</button>
+                    <button onClick={()=>window.open("https://www.google.com/search?q="+encodeURIComponent("site:law.go.kr "+((src||"").trim()||c.label)),"_blank")}
+                      style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>🔎 검색</button>
+                  </div>
+                  <div style={{display:"flex",gap:5,marginTop:6}}>
+                    {[["ok","✅ 일치",C.green],["bad","❌ 불일치",C.red],["skip","➖ 해당 없음",C.muted]].map(([v,label,color])=>(
+                      <button key={v} onClick={()=>setCite(k,{res:d.res===v?null:v})} style={chip(d.res===v,color)}>{label}</button>
+                    ))}
+                  </div>
+                  {d.res==="bad" && <div style={{fontSize:10,color:C.red,marginTop:4}}>⚠ 답안을 원문에 맞게 고친 뒤 다시 정하세요</div>}
+                  {lawView && lawView.key===k && (
+                    <div style={{marginTop:8,padding:"10px 12px",background:"#0d1520",border:`1px solid ${C.gold}40`,borderRadius:10}}>
+                      {lawView.loading && <div style={{fontSize:11,color:C.muted}}>법제처에서 불러오는 중...</div>}
+                      {lawView.err && <div style={{fontSize:11,color:C.red}}>❌ {lawView.err}</div>}
+                      {lawView.title && (
+                        <div>
+                          <div style={{fontSize:12,fontWeight:700,color:C.gold}}>{lawView.title}</div>
+                          <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{lawView.meta} · 법제처 국가법령정보센터 현행 기준</div>
+                          {lawView.lines.length>0
+                            ? <div style={{fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text,maxHeight:320,overflowY:"auto"}}>{lawView.lines.join("\n")}</div>
+                            : <pre style={{fontSize:10,color:C.muted,whiteSpace:"pre-wrap",maxHeight:240,overflow:"auto"}}>{JSON.stringify(lawView.raw||{},null,1).slice(0,3000)}</pre>}
+                        </div>
+                      )}
+                      <button onClick={()=>setLawView(null)} style={{marginTop:6,padding:"4px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:10,cursor:"pointer"}}>닫기</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>save(false)} style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${C.accent}60`,background:`${C.accent}20`,color:C.highlight,fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 초안 저장</button>
+            <button onClick={()=>save(true)} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${C.green},#059669)`,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>✅ 확정 저장</button>
+          </div>
+          {cur && <button onClick={remove} style={{width:"100%",marginTop:8,padding:"9px",borderRadius:10,border:`1px solid ${C.red}40`,background:`${C.red}10`,color:C.red,fontSize:12,cursor:"pointer"}}>🗑 이 문제의 내 모범답안 삭제</button>}
+          {modelMsg && <div style={{fontSize:12,color:C.muted,marginTop:10,textAlign:"center",lineHeight:1.6}}>{modelMsg}</div>}
+        </div>
+      </div>
+    );
+  }
+
   if (screen === "verify" && verifyItem) {
     const facts = verifyLines.filter(l => l.tag === "fact");
     const okCount = facts.filter(l => SRC_OK.includes(l.srcType) && l.src.trim() && l.checked).length;
