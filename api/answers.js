@@ -56,7 +56,8 @@ export default async function handler(req, res) {
       });
       if (idx < 0) return res.status(404).json({ error: "찾을 수 없습니다" });
       const item = JSON.parse(raw[idx]);
-      item.verify = b.verify || null;
+          if (b.verify !== undefined) item.verify = b.verify || null;
+      if (b.kind && ["교재 필사", "내 말", "인터넷 참고"].includes(b.kind)) item.kind = b.kind;
       await cmd("LSET", KEY, idx, JSON.stringify(item));
       return res.status(200).json({ ok: true });
     }
