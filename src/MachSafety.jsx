@@ -1136,6 +1136,16 @@ async function modelDeleteApi(title) {
   if (!res.ok) throw new Error(d.error || "삭제 실패");
 }
 
+async function updateKindApi(id, kind) {
+  const res = await fetch("/api/answers", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "x-answers-key": getAnswersKey() },
+    body: JSON.stringify({ id, kind }),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "종류 변경 실패");
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function MachSafety({ onBack }) {
   const [screen, setScreen] = useState("home");
@@ -1208,6 +1218,18 @@ export default function MachSafety({ onBack }) {
   const [modelMsg, setModelMsg] = useState("");
   const [showMat, setShowMat] = useState(true);
   const mTaRef = useRef(null);
+  const [homeTab, setHomeTab] = useState("todo");
+  useEffect(() => {
+    loadAnswersApi().then(d => setMineItems(d.items || [])).catch(() => {});
+  }, []);
+  useEffect(() => {
+    const conf = !!(selectedTopic && models[selectedTopic.title] && models[selectedTopic.title].status === "confirmed");
+    setSaveKind(prev => conf ? "내 말" : (prev === "인터넷 참고" ? "인터넷 참고" : "교재 필사"));
+  }, [selectedTopic, models]);
+  const changeKind = async (id, kind) => {
+    try { await updateKindApi(id, kind); setMineItems(prev => prev.map(x => x.id === id ? { ...x, kind } : x)); }
+    catch (e) { setMineErr(e.message); }
+  };
   useEffect(() => {
     modelsGetApi().then(d => {
       const m = {};
@@ -1221,7 +1243,7 @@ export default function MachSafety({ onBack }) {
     setModelText(cur ? cur.text : "");
     setModelMsg("");
     setScreen("model");
-    if (!mineItems.length) {
+      if (true) {
       try { const d = await loadAnswersApi(); setMineItems(d.items || []); } catch {}
     }
   };
@@ -1389,6 +1411,9 @@ export default function MachSafety({ onBack }) {
 
   const filtered = TOPICS.filter(t => {
     if (selectedCat !== "전체" && t.cat !== selectedCat) return false;
+    const confirmedT = !!(models[t.title] && models[t.title].status === "confirmed");
+    if (homeTab === "ready" && !confirmedT) return false;
+    if (homeTab === "todo" && confirmedT) return false;
     if (showOnlyPending && progress[t.id]) return false;
     if (searchTxt && !t.title.includes(searchTxt) && !t.keywords.some(k=>k.includes(searchTxt))) return false;
     return true;
@@ -1453,7 +1478,14 @@ export default function MachSafety({ onBack }) {
             </div>
           ))}
         </div>
-               <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
+              <div style={{display:"flex",gap:6,marginBottom:8}}>
+          {(()=>{ const readyN = TOPICS.filter(t=>models[t.title]&&models[t.title].status==="confirmed").length;
+            return [["todo",`📝 작성 필요 ${TOPICS.length-readyN}`],["ready",`🎓 학습 가능 ${readyN}`],["all","전체"]].map(([k,l])=>(
+              <button key={k} onClick={()=>setHomeTab(k)}
+                style={{flex:1,padding:"9px 0",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",background:homeTab===k?`${C.accent}30`:C.card,color:homeTab===k?C.highlight:C.muted,border:`1px solid ${homeTab===k?C.accent:C.border}`}}>{l}</button>
+            )); })()}
+        </div>
+        <input value={searchTxt} onChange={e=>setSearchTxt(e.target.value)} placeholder="🔍 문제·키워드 검색"
           style={{width:"100%",padding:"10px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
 
         <div style={{display:"flex",gap:5,marginBottom:10,overflowX:"auto",paddingBottom:3}}>
@@ -1502,6 +1534,9 @@ export default function MachSafety({ onBack }) {
               <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:6,background:`${CAT_COLORS[t.cat]||C.accent}20`,color:CAT_COLORS[t.cat]||C.accent}}>{t.cat}</span>
               <span style={{fontSize:10,color:C.muted}}>{t.level}</span>
               {t.svg && <span style={{fontSize:10,color:C.cyan}}>🖼️그림</span>}
+            {(()=>{ const m=models[t.title]; const n=mineItems.filter(x=>x.topicTitle===t.title&&(x.kind==="교재 필사"||x.kind==="인터넷 참고"||x.kind==="혼합")).length;
+                if (m) return <span style={{fontSize:10,fontWeight:700,color:m.status==="confirmed"?C.green:C.gold}}>{m.status==="confirmed"?"🎓 확정":"📝 초안"}</span>;
+                return n>0 ? <span style={{fontSize:10,color:C.cyan}}>자료 {n}</span> : null; })()}
               {progress[t.id] && <span style={{marginLeft:"auto",fontSize:10,color:C.green,fontWeight:700}}>✓완료</span>}
             </div>
             <div style={{fontSize:13,fontWeight:700,color:C.text}}>{t.title}</div>
@@ -1641,7 +1676,7 @@ export default function MachSafety({ onBack }) {
           <div style={{borderTop:`1px solid ${C.border}`,marginTop:10,paddingTop:10}}>
             <div style={{display:"flex",gap:6,marginBottom:8}}>
               {KINDS.map(k=>(
-                <button key={k} onClick={()=>setSaveKind(k)}
+                <button key={k} hidden={(models[selectedTopic.title] && models[selectedTopic.title].status==="confirmed") ? k!=="내 말" : k==="내 말"} onClick={()=>setSaveKind(k)}
                   style={{flex:1,padding:"7px 0",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer",
                     background:saveKind===k?`${C.accent}30`:"transparent",
                     color:saveKind===k?C.highlight:C.muted,
@@ -1682,7 +1717,12 @@ export default function MachSafety({ onBack }) {
           {figs.length>0 && <div style={{fontSize:10,color:C.muted,marginTop:6}}>그림은 아래 💾 내 답안 저장을 누를 때 답안과 같이 저장돼요 (최대 3장). 그림만 저장하려면 답안란에 한 줄(예: "욕조곡선 도시")을 적어 주세요.</div>}
         </div>
 
-        {!gradeResult && (
+        {!gradeResult && !(models[selectedTopic.title] && models[selectedTopic.title].status==="confirmed") && (
+          <div style={{background:`${C.orange}12`,border:`1px solid ${C.orange}40`,borderRadius:12,padding:"10px 12px",marginBottom:10,fontSize:11,color:C.text,lineHeight:1.7}}>
+            📥 이 화면은 <b>자료 저장용</b>이에요. 자료를 저장한 뒤 <b>📝 내 모범답안 만들기</b>로 가세요. 모범답안이 <b>확정</b>되면 연습과 채점이 열려요.
+          </div>
+        )}
+        {!gradeResult && models[selectedTopic.title] && models[selectedTopic.title].status==="confirmed" && (
           <button onClick={handleGrade} disabled={!answer.trim()}
             style={{width:"100%",padding:"13px",marginBottom:8,
               background:!answer.trim()?`${C.accent}30`:`linear-gradient(135deg,${C.accent},#7c3aed)`,
@@ -1767,7 +1807,7 @@ export default function MachSafety({ onBack }) {
     const resOf = (c) => (citeData[keyOf(c)] || {}).res;
     const pending = cites.filter(c => !resOf(c)).length;
     const bad = cites.filter(c => resOf(c) === "bad").length;
-    const refs = mineItems.filter(x => (x.kind === "교재 필사" || x.kind === "인터넷 참고") && x.topicTitle === selectedTopic.title);
+    const refs = mineItems.filter(x => (x.kind === "교재 필사" || x.kind === "인터넷 참고" || x.kind === "혼합") && x.topicTitle === selectedTopic.title);
     const rb = Object.values(RUBRICS).find(r => r.title === selectedTopic.title);
     const rres = rb ? checkRubric(rb, modelText) : null;
     const cur = models[selectedTopic.title];
@@ -1808,11 +1848,12 @@ export default function MachSafety({ onBack }) {
             <div style={{fontSize:10,color:C.muted,marginTop:4,lineHeight:1.6}}>
               {cur ? `저장됨: ${cur.status==="confirmed"?"확정":"초안"} · ${new Date(cur.updatedAt).toLocaleString("ko-KR")}` : "아직 저장된 내 모범답안이 없어요"}
               <br/>정답이 아니라 내가 만드는 답안이에요. 자료를 옮겨 쓴 부분은 나만 보는 용도이고, 예시로 공개할 때는 내 문장으로 다시 쓰세요.
+              <br/><b style={{color:C.gold}}>다음 단계:</b> {refs.length===0 ? "자료가 없어요 → 답안연습 화면에서 교재 필사·인터넷 참고를 저장하세요" : !modelText.trim() ? "자료를 보며 아래에 내 모범답안을 쓰세요 (초안이 필요하면 Claude에게 요청)" : (pending>0||bad>0) ? `인용 ${pending+bad}개를 현행 조문으로 확인하세요` : "✅ 확정 저장을 누르세요"}
             </div>
           </div>
 
           <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.orange}40`}}>
-            <div onClick={()=>setShowMat(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.orange,cursor:"pointer"}}>📥 자료 (교재 필사·인터넷 참고 {refs.length}개) {showMat?"▲":"▼"}</div>
+            <div onClick={()=>setShowMat(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.orange,cursor:"pointer"}}>📥 자료 (교재 필사 {refs.filter(x=>x.kind==="교재 필사").length} · 인터넷 참고 {refs.filter(x=>x.kind==="인터넷 참고").length}{refs.some(x=>x.kind==="혼합")?` · 혼합 ${refs.filter(x=>x.kind==="혼합").length}`:""}) {showMat?"▲":"▼"}</div>
             {refs.length===0 && <div style={{fontSize:11,color:C.muted,marginTop:6,lineHeight:1.6}}>같은 주제로 저장한 자료가 없어요. 답안연습에서 종류를 '교재 필사'나 '인터넷 참고'로 저장하면 여기에 나타나요.</div>}
             {showMat && refs.map(x=>(
               <div key={x.id} style={{marginTop:8,padding:"8px 10px",background:"#0d1520",borderRadius:8}}>
@@ -2234,6 +2275,15 @@ export default function MachSafety({ onBack }) {
                       {f.caption && <div style={{fontSize:11,color:C.muted,marginTop:2}}>{f.caption}</div>}
                     </div>
                   ))}
+                  {mineOpen===x.id && (
+                    <div style={{display:"flex",gap:5,marginTop:8,alignItems:"center",flexWrap:"wrap"}}>
+                      <span style={{fontSize:10,color:C.muted}}>종류 바꾸기</span>
+                      {KINDS.map(k=>(
+                        <button key={k} onClick={()=>changeKind(x.id,k)}
+                          style={{padding:"4px 8px",borderRadius:8,fontSize:10,fontWeight:700,cursor:"pointer",background:x.kind===k?`${C.accent}30`:"transparent",color:x.kind===k?C.highlight:C.muted,border:`1px solid ${x.kind===k?C.accent:C.border}`}}>{k}</button>
+                      ))}
+                    </div>
+                  )}
                   {mineOpen===x.id && x.kind==="내 말" && !isCandidate(x) && (
                     <div style={{fontSize:10,color:C.muted,marginTop:6,lineHeight:1.6}}>🏅 후보 조건 미충족: {candidateInfo(x).reasons.join(" · ")}</div>
                   )}
