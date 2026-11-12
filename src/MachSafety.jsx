@@ -1217,6 +1217,7 @@ export default function MachSafety({ onBack }) {
   const [modelText, setModelText] = useState("");
   const [modelMsg, setModelMsg] = useState("");
   const [showMat, setShowMat] = useState(true);
+  const [showNums, setShowNums] = useState(false);
   const mTaRef = useRef(null);
   const [homeTab, setHomeTab] = useState("todo");
   useEffect(() => {
@@ -1796,7 +1797,212 @@ export default function MachSafety({ onBack }) {
     </div>
   );
     // ── 답안 검증 ──────────────────────────────────────────────
-  if (screen === "model" && selectedTopic) {
+if (screen === "model" && selectedTopic) {
+    const title = selectedTopic.title;
+    const cur = models[title];
+    const mats = mineItems.filter(x => x.topicTitle === title && (x.kind === "교재 필사" || x.kind === "인터넷 참고" || x.kind === "혼합"));
+    const groupBy = (kinds) => {
+      const g = [];
+      mats.filter(x => kinds.includes(x.kind)).forEach(x => {
+        const key = x.text.replace(/\s+/g, "");
+        const f = g.find(y => y.key === key);
+        if (f) f.dups.push(x); else g.push({ key, item: x, dups: [] });
+      });
+      return g;
+    };
+    const textbook = groupBy(["교재 필사"]);
+    const web = groupBy(["인터넷 참고", "혼합"]);
+    const allText = [...textbook, ...web].map(g => g.item.text).join("\n") + "\n" + modelText;
+    const seenL = {};
+    const cites = [];
+    extractCites(allText).forEach(c => {
+      const id = c.kind + ":" + c.label;
+      if (!seenL[id]) { seenL[id] = { ...c, id, count: 0 }; cites.push(seenL[id]); }
+      seenL[id].count++;
+    });
+    const keyOf = (c) => "m:" + title + "|" + c.id;
+    const resOf = (c) => (citeData[keyOf(c)] || {}).res;
+    const lawC = cites.filter(c => c.kind === "조문");
+    const numC = cites.filter(c => c.kind === "수치");
+    const pending = lawC.filter(c => !resOf(c)).length;
+    const bad = cites.filter(c => resOf(c) === "bad").length;
+    const rb = Object.values(RUBRICS).find(r => r.title === title);
+    const rres = rb ? checkRubric(rb, modelText) : null;
+    const hasMat = mats.length > 0;
+    const stepOk = [textbook.length > 0, web.length > 0, hasMat && pending === 0 && bad === 0, !!(cur && cur.status === "confirmed")];
+    const nextMsg = !hasMat && !modelText.trim() ? "자료가 없어요 → ➕ 자료 추가에서 교재 필사나 인터넷 참고를 저장하세요"
+      : pending > 0 ? `③ 조문 ${pending}개를 현행 조문으로 확인하세요`
+      : bad > 0 ? `③ 불일치 ${bad}개를 본문에서 고친 뒤 다시 정하세요`
+      : !modelText.trim() ? "④ 본문을 정리하세요 (자료 가져오기 또는 Claude 요청문 복사)"
+      : "④ ✅ 확정 저장을 누르세요";
+    const chip = (on, color) => ({flex:1,padding:"6px 0",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer",background:on?`${color}30`:"transparent",color:on?color:C.muted,border:`1px solid ${on?color:C.border}`});
+    const delMat = async (ids) => {
+      if (!window.confirm(ids.length > 1 ? `같은 내용 ${ids.length}개를 삭제할까요?` : "이 자료를 삭제할까요?")) return;
+      try { for (const id of ids) await deleteAnswerApi(id); setMineItems(prev => prev.filter(x => !ids.includes(x.id))); }
+      catch (e) { setModelMsg("❌ " + e.message); }
+    };
+    const save = async (confirm) => {
+      if (!modelText.trim()) { setModelMsg("④ 모범답안 본문이 비어 있어요"); return; }
+      if (confirm && (pending > 0 || bad > 0)) { setModelMsg(`③ 인용 확인이 남았어요 (미확정 조문 ${pending}개 · 불일치 ${bad}개)`); return; }
+      const cd = {};
+      cites.forEach(c => {
+        const d = citeData[keyOf(c)];
+        if (d && (d.res || d.src)) cd[c.id] = { res: d.res || null, src: d.src !== undefined ? d.src : (c.kind === "조문" ? c.label : "") };
+      });
+      setModelMsg("저장 중...");
+      try {
+        await modelPutApi({ topicTitle: title, topicId: selectedTopic.id, text: modelText, status: confirm ? "confirmed" : "draft", cites: cd });
+        setModels(prev => ({ ...prev, [title]: { topicTitle: title, text: modelText, status: confirm ? "confirmed" : "draft", cites: cd, updatedAt: new Date().toISOString() } }));
+        setModelMsg(confirm ? "✅ 확정 저장됨 — 🎓 학습 가능으로 이동했어요" : "✅ 임시 저장됨");
+      } catch (e) { setModelMsg("❌ " + e.message); }
+    };
+    const remove = async () => {
+      if (!window.confirm("이 문제의 내 모범답안을 삭제할까요?")) return;
+      try {
+        await modelDeleteApi(title);
+        setModels(prev => { const n = { ...prev }; delete n[title]; return n; });
+        setModelText("");
+        setModelMsg("삭제했어요");
+      } catch (e) { setModelMsg("❌ " + e.message); }
+    };
+    const importMats = () => {
+      if (modelText.trim() && !window.confirm("지금 본문 뒤에 자료를 이어 붙일까요?")) return;
+      const t = [
+        textbook.length ? "[교재 필사]\n" + textbook.map(g => g.item.text.replace(/==/g, "")).join("\n\n") : "",
+        web.length ? "[인터넷 참고]\n" + web.map(g => g.item.text.replace(/==/g, "")).join("\n\n") : "",
+      ].filter(Boolean).join("\n\n");
+      setModelText(modelText.trim() ? modelText + "\n\n" + t : t);
+    };
+    const copyRequest = () => {
+      const rel = findRelatedExams(selectedTopic, 4).map(r => `- ${r.round}회: ${r.q}`).join("\n");
+      const okc = cites.filter(c => resOf(c) === "ok").map(c => `- ${((citeData[keyOf(c)] || {}).src || c.label)}`).join("\n");
+      const tb = textbook.map(g => g.item.text.replace(/==/g, "")).join("\n---\n");
+      const wb = web.map(g => g.item.text.replace(/==/g, "")).join("\n---\n");
+      const msg = `[요청] 기계안전기술사 모범답안 초안 작성\n문제 주제: ${title}\n\n[최근 기출]\n${rel || "(없음)"}\n\n[교재 필사]\n${tb || "(없음)"}\n\n[인터넷 참고]\n${wb || "(없음)"}\n\n[현행 조문으로 확인한 인용]\n${okc || "(아직 없음)"}\n\n[내 초안]\n${modelText || "(없음)"}\n\n요청: 위 자료를 합쳐 기술사 답안(개요-본론-결론) 초안을 써 주세요. 법령·고시는 현행 조문을 조회해 조문 번호와 함께 쓰고, 자료끼리 다르거나 개정으로 달라진 부분, 주제와 무관해 보이는 부분은 알려 주세요. 핵심 키워드는 ==키워드== 로 표시해 주세요.`;
+      try { navigator.clipboard.writeText(msg); setModelMsg("📋 요청문을 복사했어요. Claude 대화창에 붙여넣으세요"); } catch { setModelMsg("복사에 실패했어요"); }
+    };
+    const matBlock = (groups) => groups.map(g => (
+      <div key={g.item.id} style={{marginTop:8,padding:"8px 10px",background:"#0d1520",borderRadius:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>
+          <span style={{fontSize:10,color:C.muted,flex:1}}>{new Date(g.item.savedAt).toLocaleString("ko-KR")}{g.item.memo?` · ${g.item.memo}`:""}{g.dups.length>0?` · 같은 내용이 ${g.dups.length+1}번 저장됨`:""}</span>
+          {g.dups.length>0 && <button onClick={()=>delMat(g.dups.map(d=>d.id))} style={{padding:"3px 8px",borderRadius:8,border:`1px solid ${C.orange}60`,background:`${C.orange}15`,color:C.orange,fontSize:10,cursor:"pointer"}}>중복 {g.dups.length}개 삭제</button>}
+          <button onClick={()=>delMat([g.item.id, ...g.dups.map(d=>d.id)])} style={{padding:"3px 8px",borderRadius:8,border:`1px solid ${C.red}40`,background:`${C.red}10`,color:C.red,fontSize:10,cursor:"pointer"}}>🗑 삭제</button>
+        </div>
+        <div style={{fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text,maxHeight:220,overflowY:"auto"}}>{g.item.text.replace(/==/g,"")}</div>
+      </div>
+    ));
+    const citeRow = (c) => {
+      const k = keyOf(c);
+      const d = citeData[k] || {};
+      const src = d.src !== undefined ? d.src : (c.kind === "조문" ? c.label : "");
+      return (
+        <div key={c.id} style={{padding:"8px 0",borderTop:`1px solid ${C.border}`}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.gold}}>[{c.kind}] {c.label} <span style={{fontSize:10,color:C.muted,fontWeight:400}}>· {c.count}곳에서 나옴</span></div>
+          <div style={{fontSize:11,color:C.muted,lineHeight:1.6,margin:"2px 0 6px"}}>…{c.ctx}…</div>
+          <input value={src} onChange={e=>setCite(k,{src:e.target.value})} placeholder={c.kind==="조문"?"예: 산업안전보건기준에 관한 규칙 제87조":"출처 (선택)"}
+            style={{width:"100%",padding:"7px 9px",borderRadius:8,border:`1px solid ${C.border}`,background:"#0d1520",color:C.text,fontSize:11,outline:"none",boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
+            <button onClick={()=>{ const t=(src||"").trim()||c.label; if(!/제\s*\d+\s*조/.test(t)){ window.alert("법령명과 조문이 있는 항목만 앱에서 볼 수 있어요. 출처 칸에 법령명과 조문을 적어 주세요"); return; } showLaw(k, t); }}
+              style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.gold}60`,background:`${C.gold}15`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>📄 앱에서 보기</button>
+            <button onClick={()=>window.open("https://www.google.com/search?q="+encodeURIComponent("site:law.go.kr "+((src||"").trim()||c.label)),"_blank")}
+              style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>🔎 검색</button>
+          </div>
+          <div style={{display:"flex",gap:5,marginTop:6}}>
+            {[["ok","✅ 일치",C.green],["bad","❌ 불일치",C.red],["skip","➖ 해당 없음",C.muted]].map(([v,label,color])=>(
+              <button key={v} onClick={()=>setCite(k,{res:d.res===v?null:v})} style={chip(d.res===v,color)}>{label}</button>
+            ))}
+          </div>
+          {d.res==="bad" && <div style={{fontSize:10,color:C.red,marginTop:4}}>⚠ 자료나 본문을 원문에 맞게 고친 뒤 다시 정하세요</div>}
+          {lawView && lawView.key===k && (
+            <div style={{marginTop:8,padding:"10px 12px",background:"#0d1520",border:`1px solid ${C.gold}40`,borderRadius:10}}>
+              {lawView.loading && <div style={{fontSize:11,color:C.muted}}>법제처에서 불러오는 중...</div>}
+              {lawView.err && <div style={{fontSize:11,color:C.red}}>❌ {lawView.err}</div>}
+              {lawView.title && (
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:C.gold}}>{lawView.title}</div>
+                  <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{lawView.meta} · 법제처 국가법령정보센터 현행 기준</div>
+                  {lawView.lines.length>0
+                    ? <div style={{fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text,maxHeight:320,overflowY:"auto"}}>{lawView.lines.join("\n")}</div>
+                    : <pre style={{fontSize:10,color:C.muted,whiteSpace:"pre-wrap",maxHeight:240,overflow:"auto"}}>{JSON.stringify(lawView.raw||{},null,1).slice(0,3000)}</pre>}
+                </div>
+              )}
+              <button onClick={()=>setLawView(null)} style={{marginTop:6,padding:"4px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:10,cursor:"pointer"}}>닫기</button>
+            </div>
+          )}
+        </div>
+      );
+    };
+    return (
+      <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Noto Sans KR',sans-serif",color:C.text}}>
+        <div style={{background:C.surface,padding:"13px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${C.border}`}}>
+          <button onClick={()=>setScreen("write")} style={{background:C.border,border:"none",borderRadius:8,padding:"6px 12px",color:C.text,fontSize:12,cursor:"pointer"}}>← 답안연습</button>
+          <div style={{flex:1,fontSize:13,fontWeight:700}}>📝 {title}</div>
+          <button onClick={()=>setScreen("write")} style={{background:`${C.accent}20`,border:`1px solid ${C.accent}40`,borderRadius:8,padding:"6px 10px",color:C.highlight,fontSize:11,fontWeight:700,cursor:"pointer"}}>➕ 자료 추가</button>
+        </div>
+        <div style={{maxWidth:600,margin:"0 auto",padding:"14px 14px 60px"}}>
+          <div style={{display:"flex",gap:4,marginBottom:8}}>
+            {["① 교재 필사","② 인터넷 참고","③ 인용 확인","④ 확정 저장"].map((s,i)=>(
+              <div key={s} style={{flex:1,textAlign:"center",padding:"6px 2px",borderRadius:8,fontSize:10,fontWeight:700,background:stepOk[i]?`${C.green}25`:C.card,color:stepOk[i]?C.green:C.muted,border:`1px solid ${stepOk[i]?C.green+"60":C.border}`}}>{stepOk[i]?"✓ ":""}{s}</div>
+            ))}
+          </div>
+          <div style={{fontSize:12,color:C.gold,fontWeight:700,marginBottom:10,lineHeight:1.6}}>다음 단계: {nextMsg}</div>
+
+          <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.orange}40`}}>
+            <div onClick={()=>setShowMat(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.orange,cursor:"pointer"}}>① 교재 필사 ({textbook.length}) {showMat?"▲":"▼"}</div>
+            {textbook.length===0 && <div style={{fontSize:11,color:C.muted,marginTop:6}}>저장한 교재 필사가 없어요. ➕ 자료 추가에서 저장하세요.</div>}
+            {showMat && matBlock(textbook)}
+          </div>
+
+          <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.cyan}40`}}>
+            <div onClick={()=>setShowMat(p=>!p)} style={{fontSize:12,fontWeight:800,color:C.cyan,cursor:"pointer"}}>② 인터넷 참고 ({web.length}) {showMat?"▲":"▼"}</div>
+            {web.length===0 && <div style={{fontSize:11,color:C.muted,marginTop:6}}>저장한 인터넷 참고가 없어요. ➕ 자료 추가에서 저장하세요.</div>}
+            {showMat && matBlock(web)}
+          </div>
+
+          <div style={{background:C.card,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.accent}40`}}>
+            <div style={{fontSize:12,fontWeight:800,color:C.highlight,marginBottom:4}}>③ 인용 확인 (조문 {lawC.length}개 · 미확정 {pending} · 불일치 {bad})</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:6,lineHeight:1.6}}>자료와 내 본문에서 조문 번호를 한 번에 뽑았어요. 같은 조문은 한 번만 정하면 돼요. 📄 앱에서 보기로 현행 조문을 읽고, 자료가 말하는 내용과 맞는지 정하세요. 자료에 조문 번호가 틀렸거나 주제와 무관한 내용이 섞여 있으면 ❌를 누르세요.</div>
+            {lawC.length===0 && <div style={{fontSize:11,color:C.muted}}>조문 번호가 있는 인용이 없어요.</div>}
+            {lawC.map(citeRow)}
+            {numC.length>0 && (
+              <div style={{marginTop:8}}>
+                <button onClick={()=>setShowNums(p=>!p)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>수치 {numC.length}개 {showNums?"접기 ▲":"보기 ▼ (선택 사항)"}</button>
+                {showNums && numC.map(citeRow)}
+              </div>
+            )}
+          </div>
+
+          <div style={{background:C.card,borderRadius:14,padding:"12px",marginBottom:10,border:`1px solid ${C.green}40`}}>
+            <div style={{fontSize:12,fontWeight:800,color:C.green,marginBottom:6}}>④ 내 모범답안 {cur ? `(${cur.status==="confirmed"?"확정":"초안"} · ${new Date(cur.updatedAt).toLocaleString("ko-KR")})` : ""}</div>
+            <div style={{display:"flex",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+              <button onClick={importMats} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.text,fontSize:11,cursor:"pointer"}}>📥 자료를 본문으로 가져오기</button>
+              <button onClick={copyRequest} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.accent}60`,background:`${C.accent}20`,color:C.highlight,fontSize:11,fontWeight:700,cursor:"pointer"}}>📋 Claude 요청문 복사</button>
+              <button onMouseDown={e=>e.preventDefault()} onClick={markModel} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.gold}60`,background:`${C.gold}20`,color:C.gold,fontSize:11,fontWeight:700,cursor:"pointer"}}>🖍 음영</button>
+            </div>
+            <textarea ref={mTaRef} value={modelText} onChange={e=>setModelText(e.target.value)} rows={18}
+              placeholder={"1. 개요\n   ...\n\n2. 본론\n   1) ...\n\n3. 결론\n   ..."}
+              style={{width:"100%",padding:"11px",borderRadius:10,border:`1.5px solid ${modelText?C.green+"50":C.border}`,background:"#0d1520",color:C.text,fontSize:12,lineHeight:1.8,outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"'Noto Sans KR',sans-serif"}}/>
+            {modelText.includes("==") && (
+              <div style={{marginTop:8,padding:"10px 12px",background:"#0d1520",borderRadius:8,fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",color:C.text}}>
+                <div style={{fontSize:10,color:C.muted,marginBottom:4}}>미리보기 (음영 = 채점 키워드)</div>
+                <Marked text={modelText} />
+              </div>
+            )}
+            <div style={{fontSize:10,color:C.muted,marginTop:4,textAlign:"right"}}>{modelText.length}자{rres?` · 기준표 ${rres.filter(r=>r.hit).length}/${rres.length}`:""}</div>
+          </div>
+
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>save(false)} style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${C.accent}60`,background:`${C.accent}20`,color:C.highlight,fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 임시 저장</button>
+            <button onClick={()=>save(true)} style={{flex:2,padding:"12px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${C.green},#059669)`,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>✅ 확정 저장</button>
+          </div>
+          {cur && <button onClick={remove} style={{width:"100%",marginTop:8,padding:"9px",borderRadius:10,border:`1px solid ${C.red}40`,background:`${C.red}10`,color:C.red,fontSize:12,cursor:"pointer"}}>🗑 이 문제의 내 모범답안 삭제</button>}
+          {modelMsg && <div style={{fontSize:12,color:C.muted,marginTop:10,textAlign:"center",lineHeight:1.6}}>{modelMsg}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "model-old" && selectedTopic) {
     const seen = {};
     const cites = extractCites(modelText).map(c => {
       const base = c.kind + ":" + c.label;
